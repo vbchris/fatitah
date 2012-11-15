@@ -129,6 +129,10 @@ UCNH::UCNH(ProblemSpecP& ps, MPMFlags* Mflag)
                                ParticleVariable<Matrix3>::getTypeDescription());
   pDeformRateLabel_preReloc  = VarLabel::create("p.deformRate+",
                                ParticleVariable<Matrix3>::getTypeDescription());
+  pVelGradLabel              = VarLabel::create("p.velGrad",
+                               ParticleVariable<Matrix3>::getTypeDescription());
+  pVelGradLabel_preReloc     = VarLabel::create("p.velGrad+",
+                               ParticleVariable<Matrix3>::getTypeDescription());
 }
 
 UCNH::UCNH(ProblemSpecP& ps, MPMFlags* Mflag, bool plas, bool dam)
@@ -208,6 +212,10 @@ UCNH::UCNH(ProblemSpecP& ps, MPMFlags* Mflag, bool plas, bool dam)
                              ParticleVariable<Matrix3>::getTypeDescription());
   pDeformRateLabel_preReloc  = VarLabel::create("p.deformRate+",
                              ParticleVariable<Matrix3>::getTypeDescription());    
+  pVelGradLabel              = VarLabel::create("p.velGrad",
+                               ParticleVariable<Matrix3>::getTypeDescription());
+  pVelGradLabel_preReloc     = VarLabel::create("p.velGrad+",
+                               ParticleVariable<Matrix3>::getTypeDescription());
 }
 
 UCNH::UCNH(const UCNH* cm) : ConstitutiveModel(cm), ImplicitCM(cm)
@@ -274,6 +282,10 @@ UCNH::UCNH(const UCNH* cm) : ConstitutiveModel(cm), ImplicitCM(cm)
                              ParticleVariable<Matrix3>::getTypeDescription());
   pDeformRateLabel_preReloc  = VarLabel::create("p.deformRate+",
                              ParticleVariable<Matrix3>::getTypeDescription());
+  pVelGradLabel              = VarLabel::create("p.velGrad",
+                               ParticleVariable<Matrix3>::getTypeDescription());
+  pVelGradLabel_preReloc     = VarLabel::create("p.velGrad+",
+                               ParticleVariable<Matrix3>::getTypeDescription());
 }
 
 void UCNH::initializeLocalMPMLabels()
@@ -552,6 +564,8 @@ UCNH::~UCNH()
   VarLabel::destroy(bElBarLabel_preReloc);
   VarLabel::destroy(pDeformRateLabel);
   VarLabel::destroy(pDeformRateLabel_preReloc);
+  VarLabel::destroy(pVelGradLabel);
+  VarLabel::destroy(pVelGradLabel_preReloc);
 }
 
 // Initialization Functions //
@@ -654,22 +668,28 @@ void UCNH::allocateCMDataAdd(DataWarehouse* new_dw,
   // Universal
   ParticleVariable<Matrix3>        bElBar;
   ParticleVariable<Matrix3>        pDeformRate;
+  ParticleVariable<Matrix3>        pVelGrad;
   new_dw->allocateTemporary(pDeformRate, addset);
   new_dw->allocateTemporary(bElBar,      addset);
+  new_dw->allocateTemporary(pVelGrad,    addset);
   
   constParticleVariable<Matrix3>   o_bElBar;
   constParticleVariable<Matrix3>   o_pDeformRate;
+  constParticleVariable<Matrix3>   o_pVelGrad;
   new_dw->get(o_bElBar,      bElBarLabel_preReloc,      delset);
   new_dw->get(o_pDeformRate, pDeformRateLabel_preReloc, delset);
+  new_dw->get(o_pVelGrad,    pVelGradLabel_preReloc,    delset);
   
   ParticleSubset::iterator o;
   for (o=delset->begin(); o != delset->end(); o++, nUniv++) {
     bElBar[*nUniv]                   = o_bElBar[*o];
     pDeformRate[*nUniv]              = o_pDeformRate[*o];
+    pVelGrad[*nUniv]                 = o_pVelGrad[*o];
   }
   
   (*newState)[ bElBarLabel]          = bElBar.clone();
   (*newState)[pDeformRateLabel]      = pDeformRate.clone();
+  (*newState)[pVelGradLabel]         = pVelGrad.clone();
 }
 
 void UCNH::allocateCMDataAddRequires(Task* task,
@@ -705,6 +725,7 @@ void UCNH::allocateCMDataAddRequires(Task* task,
   if (flag->d_integrator != MPMFlags::Implicit) { // non implicit
     addSharedRForConvertExplicit(task, matlset, patches);
     task->requires(Task::NewDW, pDeformRateLabel_preReloc,    matlset, gnone);
+    task->requires(Task::NewDW, pVelGradLabel_preReloc,       matlset, gnone);
   } else { // Implicit only stuff
     task->requires(Task::NewDW,lb->pStressLabel_preReloc,     matlset, gnone);
     task->requires(Task::NewDW,lb->pDeformationMeasureLabel_preReloc, matlset,
@@ -739,9 +760,16 @@ void UCNH::carryForward(const PatchSubset* patches,
       bElBar_new[idx] = bElBar[idx];
     }
     if (flag->d_integrator != MPMFlags::Implicit) {
+     
       ParticleVariable<Matrix3> pDeformRate;
       new_dw->allocateAndPut(pDeformRate,   pDeformRateLabel_preReloc, pset);
       pDeformRate.copyData(bElBar);
+
+      constParticleVariable<Matrix3> pVelGrad_old;
+      ParticleVariable<Matrix3> pVelGrad;
+      old_dw->get(pVelGrad_old,             pVelGradLabel,          pset);
+      new_dw->allocateAndPut(pVelGrad,      pVelGradLabel_preReloc, pset);
+      pVelGrad.copyData(pVelGrad_old);  
     }
     
     // Plasticity
@@ -977,14 +1005,17 @@ void UCNH::initializeCMData(const Patch* patch,
   }
   
   // Universal
-  ParticleVariable<Matrix3> deformationGradient, pstress, bElBar, pDeformRate;
+  ParticleVariable<Matrix3> deformationGradient, pstress, bElBar, pDeformRate, 
+                            pVelGrad;
   
   new_dw->allocateAndPut(pDeformRate, pDeformRateLabel, pset);
   new_dw->allocateAndPut(bElBar,      bElBarLabel,      pset);
+  new_dw->allocateAndPut(pVelGrad,    pVelGradLabel,    pset);
 
   for(;iterUniv != pset->end(); iterUniv++){
     bElBar[*iterUniv]      = Identity;
     pDeformRate[*iterUniv] = zero;
+    pVelGrad[*iterUniv]    = zero;
   }
   
   // If not implicit, compute timestep
@@ -1049,6 +1080,8 @@ void UCNH::addComputesAndRequires(Task* task,
   task->requires(Task::OldDW, bElBarLabel,              matlset, gnone);
   task->computes(bElBarLabel_preReloc,                  matlset);
   task->computes(pDeformRateLabel_preReloc,             matlset);
+  task->requires(Task::OldDW, pVelGradLabel,            matlset, gnone);
+  task->computes(pVelGradLabel_preReloc,                matlset);
 }
 
 void UCNH::addComputesAndRequires(Task* task,
@@ -1103,6 +1136,7 @@ void UCNH::addInitialComputesAndRequires(Task* task,
   // Universal
   task->computes(bElBarLabel,           matlset);
   task->computes(pDeformRateLabel,      matlset);
+  task->computes(pVelGradLabel,         matlset);
 }
 
 
@@ -1297,7 +1331,7 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
     constParticleVariable<double>  pPlasticStrain_old, pYieldStress_old, pcolor;
     constParticleVariable<long64>  pParticleID;
     constParticleVariable<Point>   px;
-    constParticleVariable<Matrix3> pDefGrad, bElBar;
+    constParticleVariable<Matrix3> pDefGrad, bElBar, pVelGrad;
     constParticleVariable<Matrix3> pSize;
     constParticleVariable<Vector>  pVelocity;
     // New data containers
@@ -1306,7 +1340,7 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
     ParticleVariable<double>       pPlasticStrain, pYieldStress;
     ParticleVariable<double>       pFailureStrain_new, pVolume_new, pDamage_new;
     ParticleVariable<double>       pdTdt,p_q;
-    ParticleVariable<Matrix3>      pDefGrad_new, pDeformRate;
+    ParticleVariable<Matrix3>      pDefGrad_new, pDeformRate, pVelGrad_new;
     ParticleVariable<Matrix3>      pStress,bElBar_new;
     ParticleVariable<Matrix3>      velGrad;
     constNCVariable<Vector>        gDisp;
@@ -1370,6 +1404,7 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pDefGrad,            lb->pDeformationMeasureLabel, pset);
     old_dw->get(pSize,               lb->pSizeLabel,               pset);
     old_dw->get(bElBar,              bElBarLabel,                  pset);
+    old_dw->get(pVelGrad,            pVelGradLabel,                pset);
     
     // Universal Allocations
     new_dw->allocateAndPut(bElBar_new,  bElBarLabel_preReloc,      pset);
@@ -1380,6 +1415,8 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
     new_dw->allocateAndPut(pDeformRate, pDeformRateLabel_preReloc, pset);
     new_dw->allocateAndPut(pDefGrad_new,
                             lb->pDeformationMeasureLabel_preReloc, pset);
+    new_dw->allocateAndPut(pVelGrad_new, pVelGradLabel_preReloc,   pset);
+
     // Temporary Allocations
     new_dw->allocateTemporary(velGrad,                             pset);
 
@@ -1409,20 +1446,19 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
                                                               pDefGrad[idx]);
         
         // Fracture-- only in Damage
-        short pgFld[27];
         if (flag->d_fracture) {
+          short pgFld[27];
           for(int k=0; k<27; k++){
             pgFld[k]=pgCode[idx][k];
           }
           computeVelocityGradient(velGrad_new,ni,d_S,oodx,pgFld,
                                   gVelocity,GVelocity);
         } else {
-            // Get the node indices that surround the cell
-            interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,pSize[idx],
-                                                                 pDefGrad[idx]);
-            
-            computeVelocityGradient(velGrad_new,ni,d_S, oodx, gVelocity);
-          }
+          // standard computation
+          //cerr << "UCNH::computeVelocityGradient for particle: " << idx  << " patch = " << pp 
+          //     << " px = " << px[idx] <<  " pmass = " << pMass[idx] << " pvelocity = " << pVelocity[idx] << endl;
+          computeVelocityGradient(velGrad_new, ni, d_S, oodx, gVelocity);
+        }
       } else {  // axi-symmetric kinematics
         // Get the node indices that surround the cell
         interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
@@ -1433,46 +1469,62 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
                                                                  px[idx]);
       }
 
-
       velGrad[idx] = velGrad_new;
+      pVelGrad_new[idx] = velGrad_new;
+      //if (isnan(velGrad[idx].Norm())) {
+      //  cerr << "particle = " << idx << " velGrad = " << velGrad[idx] << endl;
+      //  throw InvalidValue("**ERROR**: Nan in velocity gradient value", __FILE__, __LINE__);
+      //}
 
-      Matrix3 F=pDefGrad[idx];
-      double Lnorm_dt = velGrad_new.Norm()*delT;
-      int num_scs = max(1,2*((int) Lnorm_dt));
-      if(num_scs > 1000){
-        cout << "NUM_SCS = " << num_scs << endl;
+      // Improve upon first order estimate of deformation gradient
+      bool d_taylorSeriesForDefGrad = true;
+      int d_numTaylorTerms = 10;
+      int num_scs = 1;
+      if (d_taylorSeriesForDefGrad) {
+        // Use Taylor series expansion
+        // Compute mid point velocity gradient
+        Matrix3 Amat = (pVelGrad[idx] + pVelGrad_new[idx])*(0.5*delT);
+        pDefGradInc = Amat.Exponential(d_numTaylorTerms);
+        pDefGrad_new[idx] = pDefGradInc*pDefGrad[idx]; 
+      } else {
+        Matrix3 F=pDefGrad[idx];
+        double Lnorm_dt = velGrad_new.Norm()*delT;
+        num_scs = max(1,2*((int) Lnorm_dt));
+        if(num_scs > 1000){
+          cout << "NUM_SCS = " << num_scs << endl;
+        }
+        double dtsc = delT/(double (num_scs));
+        Matrix3 OP_tensorL_DT = Identity + velGrad_new*dtsc;
+        for(int n=0;n<num_scs;n++){
+          F=OP_tensorL_DT*F;
+//            if(num_scs >1000){
+//            cerr << "n = " << n << endl;
+//            cerr << "F = " << F << endl;
+//            cerr << "J = " << F.Determinant() << endl << endl;
+//            }
+        }
+        pDefGrad_new[idx]=F;
+        pDefGradInc = pDefGrad_new[idx]*pDefGrad[idx].Inverse();
       }
-      double dtsc = delT/(double (num_scs));
-      Matrix3 OP_tensorL_DT = Identity + velGrad_new*dtsc;
-      for(int n=0;n<num_scs;n++){
-        F=OP_tensorL_DT*F;
-//          if(num_scs >1000){
-//          cerr << "n = " << n << endl;
-//          cerr << "F = " << F << endl;
-//          cerr << "J = " << F.Determinant() << endl << endl;
-//          }
-      }
-      pDefGrad_new[idx]=F;
-      pDefGradInc = pDefGrad_new[idx]*pDefGrad[idx].Inverse();
 
       // Check 1: Look at Jacobian
       J = pDefGrad_new[idx].Determinant();
       if (!(J > 0.0)) {
-        cerr << "matl = "  << dwi << endl;
-        cerr << "F_old = " << pDefGrad[idx]     << endl;
-        cerr << "F_inc = " << pDefGradInc       << endl;
-        cerr << "F_new = " << pDefGrad_new[idx] << endl;
-        cerr << "J = "     << J                 << endl;
-        cerr << "NUM_SCS = " << num_scs << endl;
         constParticleVariable<long64> pParticleID;
         old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-        cerr << "ParticleID = " << pParticleID[idx] << endl;
-        cerr << "**ERROR** Negative Jacobian of deformation gradient"
+        cerr << "UCNH::matl = "  << dwi << " particle = " << idx 
+             << " particleID = " << pParticleID[idx] << endl;
+        cerr << "UCNH::velGrad = " << velGrad_new << endl;
+        cerr << "UCNH::F_old = " << pDefGrad[idx]     << endl;
+        cerr << "UCNH::F_inc = " << pDefGradInc       << endl;
+        cerr << "UCNH::F_new = " << pDefGrad_new[idx] << endl;
+        cerr << "UCNH::J = "     << J                 << endl;
+        cerr << "UCNH::NUM_SCS = " << num_scs << endl;
+        cerr << "**ERROR** UCNH::Negative Jacobian of deformation gradient"
              << " in particle " << pParticleID[idx]  << " which has mass "
              << pMass[idx] << endl;
         // pDefGrad_new[idx] =  pDefGrad[idx];
         // pDefGradInc = Identity;
-        cerr << "VelGrad = " << velGrad_new << endl;
         throw InvalidValue("**ERROR**:UCNH", __FILE__, __LINE__);
       }
     }
@@ -1614,6 +1666,18 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
       
       // compute the total stress (volumetric + deviatoric)
       pStress[idx] = Identity*p + tauDev/J;
+      if (isnan(pStress[idx].Norm())) {
+        cerr << "particle = " << idx << " velGrad = " << velGrad[idx] << endl;
+        cerr << " stress = " << pStress[idx] << endl;
+        cerr << " pmass = " << pMass[idx] << " pvol = " << pVolume_new[idx] << endl;
+        cerr << " delgamma = " << delgamma << " ftrial = " << fTrial 
+             << " mubar = " << muBar << " K = " << K << endl;
+        cerr << " fBar = " << fBar << " Jinc = " << Jinc << " pDefGradInc = " << pDefGradInc << endl;
+        cerr << " IEl = " << IEl << " bElBarTrial = " << bElBarTrial << " shear = " << shear << endl;
+        cerr << " normal = " << normal << " tauDevTrial = " << tauDevTrial << " sTnorm = " << sTnorm << endl;
+        cerr << " p = " << p << " rho_orig = " << rho_orig << " rho_cur = " << rho_cur << endl;
+        throw InvalidValue("**UCNH ERROR**: Nan in stress value", __FILE__, __LINE__);
+      }
 
       if( d_useDamage){
         pDamage_new[idx] = pDamage[idx];
@@ -1987,6 +2051,8 @@ void UCNH::addParticleState(std::vector<const VarLabel*>& from,
   if (flag->d_integrator != MPMFlags::Implicit) {
     from.push_back(pDeformRateLabel);
     to.push_back(pDeformRateLabel_preReloc);
+    from.push_back(pVelGradLabel);
+    to.push_back(pVelGradLabel_preReloc);
   }
 }
 

@@ -80,6 +80,12 @@ using namespace Uintah;
 
 using namespace std;
 
+//__________________________________
+//  To turn on debug flags
+//  csh/tcsh : setenv SCI_DEBUG "MPM:+,SerialMPM:+".....
+//  bash     : export SCI_DEBUG="MPM:+,SerialMPM:+" )
+//  default is OFF
+
 static DebugStream cout_doing("MPM", false);
 static DebugStream cout_dbg("SerialMPM", false);
 static DebugStream cout_convert("MPMConv", false);
@@ -2819,6 +2825,7 @@ void SerialMPM::computeInternalForce(const ProcessorGroup*,
                                                          psize[idx],pFOld[idx]);
           stressvol  = pstress[idx]*pvol[idx];
           stresspress = pstress[idx] + Id*(p_pressure[idx] - p_q[idx]);
+          //cerr << " idx = " << idx << " pstress = " << pstress[idx] << endl;
 
           for (int k = 0; k < n8or27; k++){
             if(patch->containsNode(ni[k])){
