@@ -37,13 +37,7 @@ ADD_EXECUTABLE(restart_merger restart_merger.cc)
 ADD_EXECUTABLE(gambitFileReader gambitFileReader.cc)
 
 SET(SUS_LIBS 
-        Core_Containers   
-        Core_Exceptions   
-        Core_Geometry     
-        Core_Math         
-        Core_Persistent   
-        Core_Thread       
-        Core_Util         
+        Packages_Uintah_Core_Thread       
         Packages_Uintah_Core_DataArchive 
         Packages_Uintah_Core_Grid        
         Packages_Uintah_Core_Parallel    
@@ -80,22 +74,17 @@ TARGET_LINK_LIBRARIES(compare_uda
   Packages_Uintah_Core_DataArchive
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Malloc
-  Core_Util
-  Core_Thread
-  Core_Math
+  Packages_Uintah_Core_Thread
+  Packages_Uintah_Core_Math
 )
 
 TARGET_LINK_LIBRARIES(partvarRange
-  Core_Containers
-  Core_Exceptions
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_DataArchive
 )
 
 TARGET_LINK_LIBRARIES(restart_merger
-  Core_Exceptions
-  Core_OS
   Packages_Uintah_Core_DataArchive
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_ProblemSpec
@@ -103,10 +92,6 @@ TARGET_LINK_LIBRARIES(restart_merger
 )
   
 TARGET_LINK_LIBRARIES(selectpart
-  Core_Containers
-  Core_Exceptions
-  Core_Geometry
-  Core_Util
   Packages_Uintah_Core_DataArchive
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Grid
@@ -114,7 +99,6 @@ TARGET_LINK_LIBRARIES(selectpart
 )
   
 TARGET_LINK_LIBRARIES(slb
-  Core_Exceptions
   Packages_Uintah_Core_GeometryPiece
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_ProblemSpec

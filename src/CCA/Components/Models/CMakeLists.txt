@@ -33,10 +33,7 @@ SET(Packages_Uintah_CCA_Components_Models_SRCS
 )
 
 SET(LIBS
-  Core_Exceptions
-  Core_Geometry
-  Core_Thread
-  Core_Util
+  Packages_Uintah_Core_Thread
   Packages_Uintah_CCA_Ports
   Packages_Uintah_CCA_Components_ICE
   Packages_Uintah_CCA_Ports

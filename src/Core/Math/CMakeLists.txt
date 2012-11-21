@@ -50,6 +50,19 @@ SET(Packages_Uintah_Core_Math_SRCS
   Sparse.cc            
   Short27.cc           
   TangentModulusTensor.cc  
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/BBox.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/CompGeom.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/IntVector.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Plane.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Point.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Polygon.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Quaternion.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Ray.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Tensor.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Transform.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Geometry/Vector.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Disclosure/TypeDescription.cc 
+  ${CMAKE_SOURCE_DIR}/Core/Disclosure/TypeUtils.cc 
 )
 
 IF(WIN32)
@@ -58,12 +71,25 @@ ENDIF(WIN32)
 
 ADD_LIBRARY(Packages_Uintah_Core_Math ${Packages_Uintah_Core_Math_SRCS})
 
+set(LIBS
+ ${M_LIBRARY} 
+ ${DL_LIBRARY} 
+ ${LAPACK_LIBRARY} 
+ ${BLAS_LIBRARY} 
+ ${F_LIBRARY} 
+ ${XML2_LIBRARY} 
+ ${MPI_LIBRARY} 
+ ${TEEM_LIBRARY} 
+ ${PNG_LIBRARY} 
+ ${Z_LIBRARY}
+)
+
 TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Math
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Disclosure
-  ${XML2_LIBRARY}
-  ${M_LIBRARY}
+  Packages_Uintah_Core_Thread
+  Packages_Uintah_Core_Persistent
+  ${LIBS}
 )
 
 IF(BUILD_SHARED_LIBS)

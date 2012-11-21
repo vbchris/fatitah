@@ -33,7 +33,8 @@ include $(SCIRUN_SCRIPTS)/smallso_prologue.mk
 
 SRCDIR   := Core/Persistent
 
-SRCS     += $(SRCDIR)/Persistent.cc     \
+SRCS     += \
+            $(SRCDIR)/Persistent.cc     \
 	    $(SRCDIR)/PersistentSTL.cc  \
 	    $(SRCDIR)/Pstreams.cc 
 

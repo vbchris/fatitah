@@ -50,7 +50,9 @@ SET(Packages_Uintah_Core_Thread_SRCS
 
 ADD_LIBRARY(Packages_Uintah_Core_Thread ${Packages_Uintah_Core_Thread_SRCS})
 
+message(STATUS "Core/Thread Linking to libraries ${LIBS} ${THREAD_LIBRARY} ${TRACEBACK_LIB} ${SEMAPHORE_LIBRARY}")
 TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Thread
+
   Packages_Uintah_Core_Exceptions
   ${THREAD_LIBRARY} 
   ${TRACEBACK_LIB} 

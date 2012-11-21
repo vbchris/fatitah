@@ -29,38 +29,66 @@
 # CMakeLists.txt for Packages/Uintah/Core/Datatypes
 
 SET(Packages_Uintah_Core_Datatypes_SRCS
-  Archive.cc
-  ScalarParticles.cc
-  VectorParticles.cc
-  TensorParticles.cc
-  PSet.cc
-  GLAnimatedStreams.cc
-  VariableCache.cc
+  Clipper.cc                    
+  Color.cc                      
+  ColumnMatrix.cc               
+  Datatype.cc                   
+  DenseColMajMatrix.cc          
+  DenseMatrix.cc                
+  Field.cc                      
+  Image.cc                      
+  Matrix.cc                     
+  MatrixOperations.cc           
+  Mesh.cc                       
+  PropertyManager.cc            
+  SearchGrid.cc                 
+  SparseRowMatrix.cc            
+  String.cc                     
+  FieldInterfaceAux.cc          
+  TypeName.cc                   
+  Archive.cc                  
+  ScalarParticles.cc     
+  VectorParticles.cc     
+  TensorParticles.cc     
+  PSet.cc       
+  VariableCache.cc     
 )
+
+if (HAVE_TEEM)
+  SET(Packages_Uintah_Core_Datatypes_SRCS
+    ${Packages_Uintah_Core_Datatypes_SRCS}
+    NrrdData.cc                   
+  )
+  include_directories(${TEEM_INCLUDE})
+else ()
+  include_directories(${BLAS_INCLUDE})
+endif ()
 
 ADD_LIBRARY(Packages_Uintah_Core_Datatypes ${Packages_Uintah_Core_Datatypes_SRCS})
 
+set(LIBS  
+  ${M_LIBRARY} 
+  ${BLAS_LIBRARY} 
+  ${F_LIBRARY}           
+  ${TEEM_LIBRARY} 
+  ${PNG_LIBRARY} 
+  ${Z_LIBRARY}         
+  ${BLAS_LIBRARY} 
+  ${LAPACK_LIBRARY} 
+  ${THREAD_LIBRARY} 
+  ${MPI_LIBRARY}
+)
+
 TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Datatypes
-  Dataflow_Network
-  Core_Exceptions
-  Core_Geom
-  Core_Geometry
-  Core_Persistent
-  Core_Datatypes
-  Core_Containers
-  Core_Thread
-  Core_Util
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_Parallel
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Math
-  Packages_Uintah_Core_Disclosure
+  Packages_Uintah_Core_Basis        
+  Packages_Uintah_Core_Exceptions   
+  Packages_Uintah_Core_Grid   
+  Packages_Uintah_Core_Math         
+  Packages_Uintah_Core_Persistent   
+  Packages_Uintah_Core_Thread       
+  Packages_Uintah_Core_Util         
   Packages_Uintah_Core_ProblemSpec
-  Packages_Uintah_CCA_Ports
-  Packages_Uintah_Core_Exceptions
-  ${XML2_LIBRARY}
-  ${GL_LIBRARY}
-  ${M_LIBRARY}
+  ${LIBS}
 )
 
 IF(BUILD_SHARED_LIBS)

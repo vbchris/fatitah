@@ -44,11 +44,8 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_PatchCombiner
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_ProblemSpec
-  Core_OS
-  Core_Exceptions
-  Core_Containers
-  Core_Thread
-  Core_Util
+  Packages_Uintah_Core_Thread
+  ${MPI_LIBRARY}
   ${XML2_LIBRARY}
   ${M_LIBRARY}
 )

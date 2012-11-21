@@ -49,11 +49,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_SimulationController
   Packages_Uintah_CCA_Components_PatchCombiner
   Packages_Uintah_CCA_Components_Regridder
   Packages_Uintah_CCA_Components_DataArchiver
-  Core_OS
-  Core_Geometry
-  Core_Thread
-  Core_Util
-  Core_Exceptions
+  Packages_Uintah_Core_Thread
   ${XML2_LIBRARY}
   ${M_LIBRARY}
 )

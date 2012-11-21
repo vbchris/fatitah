@@ -26,61 +26,27 @@
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/CCA/Components/ICE
+# CMakeLists.txt for Packages/Uintah/Core/Basis
 
-SET(Packages_Uintah_CCA_Components_ICE_SRCS
-  ICE.cc 
-  AMRICE.cc 
-  ICEDebug.cc 
-  ICEMaterial.cc 
-  Diffusion.cc 
-  BoundaryCond.cc 
-  Turbulence.cc 
-  SmagorinskyModel.cc 
-  DynamicModel.cc 
-  TurbulenceFactory.cc 
-  impICE.cc 
-  impAMRICE.cc 
-  customInitialize.cc   
-  ExchangeCoefficients.cc     
+SET(Packages_Uintah_Core_Basis_SRCS
+  CrvLinearLgn.cc             
+  CrvQuadraticLgn.cc          
+  HexTrilinearLgn.cc          
+  HexTriquadraticLgn.cc          
+  Locate.cc                   
+  PrismLinearLgn.cc           
+  PrismQuadraticLgn.cc           
+  QuadBilinearLgn.cc          
+  QuadBiquadraticLgn.cc          
+  TetLinearLgn.cc             
+  TetQuadraticLgn.cc          
+  TriLinearLgn.cc             
+  TriQuadraticLgn.cc          
+  TriCubicHmt.cc          
 )
 
-add_subdirectory(EOS)
-add_subdirectory(Advection)
-add_subdirectory(CustomBCs)
-add_subdirectory(SpecificHeatModel)
-
-ADD_LIBRARY(Packages_Uintah_CCA_Components_ICE ${Packages_Uintah_CCA_Components_ICE_SRCS})
-
-SET(LIBS
-  Packages_Uintah_CCA_Components_OnTheFlyAnalysis
-  Packages_Uintah_CCA_Ports
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Math
-  Packages_Uintah_Core_Disclosure
-  Packages_Uintah_Core_GeometryPiece
-  Packages_Uintah_Core_ProblemSpec
-  Packages_Uintah_Core_Parallel
-  Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Math
-  Packages_Uintah_Core_Labels
-  ${XML2_LIBRARY}
-  ${MPI_LIBRARY}
-  ${M_LIBRARY}
-)
-
-IF(APPLE)
-  SET(LIBS ${LIBS} Packages_Uintah_CCA_Components_MPM)
-ENDIF(APPLE)
-
-
-IF(HYPRE_LIBRARY)
-  SET(LIBS ${LIBS} ${HYPRE_LIBRARY})
-ENDIF(HYPRE_LIBRARY)
-
-TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_ICE ${LIBS})
+ADD_LIBRARY(Packages_Uintah_Core_Basis ${Packages_Uintah_Core_Basis_SRCS})
 
 IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_ICE)
+  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_Core_Basis)
 ENDIF(BUILD_SHARED_LIBS)

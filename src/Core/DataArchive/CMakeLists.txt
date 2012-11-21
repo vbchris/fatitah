@@ -43,11 +43,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_Core_DataArchive
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
-  Core_Thread
-  Core_Exceptions
-  Core_Geometry
-  Core_Containers
-  Core_Util
+  Packages_Uintah_Core_Thread
   ${XML2_LIBRARY}
 )
 

@@ -67,9 +67,6 @@ endif (CUDA)
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Examples ${Packages_Uintah_CCA_Components_Examples_SRCS})
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Examples
-  Core_Geometry
-  Core_Util
-  Core_Exceptions
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Util

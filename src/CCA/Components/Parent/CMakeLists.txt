@@ -38,9 +38,6 @@ SET(COMPONENTS Packages_Uintah_CCA_Components)
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Parent ${Packages_Uintah_CCA_Components_Parent_SRCS})
 
 SET(LIBS
-  Core_Exceptions
-  Core_Util
-  Core_Geometry
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions

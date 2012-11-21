@@ -29,34 +29,31 @@
 # CMakeLists.txt for Packages/Uintah/CCA/Ports
 
 SET(Packages_Uintah_CCA_Ports_SRCS
-  SimulationInterface.cc
-  DataWarehouse.cc
-  LoadBalancer.cc
-  ModelInterface.cc
-  ModelMaker.cc
-  Output.cc
-  ProblemSpecInterface.cc
-  Regridder.cc
-  Scheduler.cc
-  SolverInterface.cc
-  SwitchingCriteria.cc
+  SimulationInterface.cc 
+  DataWarehouse.cc 
+  LoadBalancer.cc 
+  ModelInterface.cc 
+  ModelMaker.cc 
+  Output.cc 
+  ProblemSpecInterface.cc 
+  Regridder.cc 
+  Scheduler.cc 
+  SolverInterface.cc 
+  SwitchingCriteria.cc 
   SFC.cc
 )
 
 ADD_LIBRARY(Packages_Uintah_CCA_Ports ${Packages_Uintah_CCA_Ports_SRCS})
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Ports
-  Packages_Uintah_Core_Parallel
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_Disclosure
-  Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_ProblemSpec
-  Core_Thread
-  Core_Exceptions
-  Core_Geometry
-  Core_Containers
-  Core_Util
+  Packages_Uintah_Core_Parallel    
+  Packages_Uintah_Core_Util        
+  Packages_Uintah_Core_Grid        
+  Packages_Uintah_Core_Exceptions  
+  Packages_Uintah_Core_ProblemSpec 
+  Packages_Uintah_Core_Thread                      
+  Packages_Uintah_Core_Exceptions                  
+  ${MPI_LIBRARY}
 )
 
 IF(BUILD_SHARED_LIBS)

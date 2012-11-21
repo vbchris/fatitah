@@ -29,39 +29,36 @@
 # CMakeLists.txt for Packages/Uintah/Core/GeometryPiece
 
 SET(Packages_Uintah_Core_GeometryPiece_SRCS
-  GeometryObject.cc
-  GeometryPiece.cc
-  SphereGeometryPiece.cc
-  SphereMembraneGeometryPiece.cc
-  NaaBoxGeometryPiece.cc
-  BoxGeometryPiece.cc
-  CylinderGeometryPiece.cc
-  ConeGeometryPiece.cc
-  TriGeometryPiece.cc
-  UniformGrid.cc
-  UnionGeometryPiece.cc
-  DifferenceGeometryPiece.cc
-  IntersectionGeometryPiece.cc
-  FileGeometryPiece.cc
-  NullGeometryPiece.cc
-  GeometryPieceFactory.cc
-  ShellGeometryPiece.cc
-  ShellGeometryFactory.cc
-  CylinderShellPiece.cc
-  PlaneShellPiece.cc
-  SphereShellPiece.cc
-  GUVSphereShellPiece.cc
-  SmoothGeomPiece.cc
-  SmoothCylGeomPiece.cc
-  CorrugEdgeGeomPiece.cc
+  GeometryObject.cc 
+  GeometryPiece.cc 
+  SphereGeometryPiece.cc 
+  SphereMembraneGeometryPiece.cc 
+  NaaBoxGeometryPiece.cc 
+  BoxGeometryPiece.cc 
+  CylinderGeometryPiece.cc 
+  TorusGeometryPiece.cc 
+  ConeGeometryPiece.cc 
+  TriGeometryPiece.cc 
+  UniformGrid.cc 
+  UnionGeometryPiece.cc 
+  DifferenceGeometryPiece.cc 
+  IntersectionGeometryPiece.cc 
+  FileGeometryPiece.cc 
+  NullGeometryPiece.cc 
+  GeometryPieceFactory.cc 
+  ShellGeometryPiece.cc 
+  ShellGeometryFactory.cc 
+  CylinderShellPiece.cc 
+  PlaneShellPiece.cc 
+  SphereShellPiece.cc 
+  SmoothGeomPiece.cc 
+  SmoothCylGeomPiece.cc 
+  CorrugEdgeGeomPiece.cc 
 )
 
 ADD_LIBRARY(Packages_Uintah_Core_GeometryPiece ${Packages_Uintah_Core_GeometryPiece_SRCS})
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_Core_GeometryPiece
-  Core_Exceptions
-  Core_Geometry
-  Core_Util
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Math

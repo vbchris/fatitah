@@ -47,12 +47,9 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_MPMICE
   Packages_Uintah_Core_Math
   Packages_Uintah_CCA_Components_MPM
   Packages_Uintah_CCA_Components_ICE
-  Core_Exceptions
-  Core_Thread
-  Core_Geometry
-  Core_Util
   ${XML2_LIBRARY}
   ${M_LIBRARY}
+  ${MPI_LIBRARY}
 )
 
 IF(BUILD_SHARED_LIBS)

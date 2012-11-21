@@ -19,34 +19,30 @@
 # 
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 #  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+#  FITNESS FOR A PARTICULAR PURPTrackerE AND NONINFRINGEMENT. IN NO EVENT SHALL
 #  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-#  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#  LIABILITY, WHETHER IN AN ACTTrackerN OF CONTRACT, TORT OR OTHERWISE, ARISING
+#  FROM, OUT OF OR IN CONNECTTrackerN WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/Core/Labels
+# CMakeLists.txt for Packages/Uintah/Core/Tracker
 
-SET(Packages_Uintah_Core_Labels_SRCS
-  ICELabel.cc
-  MPMLabel.cc
-  MPMICELabel.cc
+SET(Packages_Uintah_Core_Tracker_SRCS
+  Tracker.cc       
+  TrackerClient.cc 
+  TrackerServer.cc 
 )
 
-ADD_LIBRARY(Packages_Uintah_Core_Labels ${Packages_Uintah_Core_Labels_SRCS})
+ADD_LIBRARY(Packages_Uintah_Core_Tracker ${Packages_Uintah_Core_Tracker_SRCS})
 
-TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Labels
-  Packages_Uintah_Core_Disclosure
+TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Tracker
   Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_Parallel
+  Packages_Uintah_Core_Thread
   Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Math
-  Packages_Uintah_Core_ProblemSpec
-  ${MPI_LIBRARY}
 )
 
 IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_Core_Labels)
+  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_Core_Tracker)
 ENDIF(BUILD_SHARED_LIBS)
+

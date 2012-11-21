@@ -47,10 +47,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Regridder
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Util
   Packages_Uintah_Core_Exceptions
-  Core_Geometry
-  Core_Exceptions
-  Core_Thread
-  Core_Util
+  Packages_Uintah_Core_Thread
   ${XML2_LIBRARY}
   ${MPI_LIBS}
   ${M_LIBRARY}

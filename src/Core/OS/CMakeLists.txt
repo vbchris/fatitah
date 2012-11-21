@@ -21,53 +21,27 @@
 #  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 #  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-#  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#  LIABILITY, WHETHER IN AN ACTOSN OF CONTRACT, TORT OR OTHERWISE, ARISING
+#  FROM, OUT OF OR IN CONNECTOSN WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/Core/Util
+# CMakeLists.txt for Packages/Uintah/Core/OS
 
-SET(Packages_Uintah_Core_Util_SRCS
-  DebugStream.cc        
-  Endian.cc             
-  Environment.cc        
-  FileUtils.cc          
-  LogFile.cc            
-  ProgressReporter.cc   
-  RegressionReporter.cc 
-  SimpleProfiler.cc     
-  SizeTypeConvert.cc    
-  RWS.cc                
-  sci_system.cc         
-  Signals.cc            
-  Timer.cc              
-  TypeDescription.cc    
-  ProgressiveWarning.cc 
-  Util.cc 
-  ${REFCOUNT_IMPL}
+SET(Packages_Uintah_Core_OS_SRCS
+  Dir.cc 
+  ProcessInfo.cc 
+  sock.cc
 )
 
-ADD_LIBRARY(Packages_Uintah_Core_Util ${Packages_Uintah_Core_Util_SRCS})
+ADD_LIBRARY(Packages_Uintah_Core_OS ${Packages_Uintah_Core_OS_SRCS})
 
-set(LIBS 
+TARGET_LINK_LIBRARIES(Packages_Uintah_Core_OS
   Packages_Uintah_Core_Exceptions
-)
-if (WIN32)
-  set(LIBS
-    ${LIBS}
-    Packages_Uintah_Core_OS
-  )
-endif()
-
-message(STATUS "Core/Util Linking to libraries ${LIBS} ${DL_LIBRARY} ${THREAD_LIBRARY} ${SOCKET_LIBRARY}")
-
-TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Util ${LIBS}
-   ${DL_LIBRARY}
-   ${THREAD_LIBRARY} 
-   ${SOCKET_LIBRARY}
+  ${SOCKET_LIBRARY}
 )
 
 IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_Core_Util)
+  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_Core_OS)
 ENDIF(BUILD_SHARED_LIBS)
+

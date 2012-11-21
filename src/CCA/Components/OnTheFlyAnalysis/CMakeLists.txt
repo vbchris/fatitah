@@ -41,10 +41,6 @@ SET(Packages_Uintah_CCA_Components_OnTheFlyAnalysis_SRCS
 ADD_LIBRARY(Packages_Uintah_CCA_Components_OnTheFlyAnalysis ${Packages_Uintah_CCA_Components_OnTheFlyAnalysis_SRCS})
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_OnTheFlyAnalysis
-  Core_Geometry
-  Core_Exceptions
-  Core_Util
-  Core_OS
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
@@ -54,8 +50,16 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_OnTheFlyAnalysis
   Packages_Uintah_Core_Parallel
   Packages_Uintah_Core_Util
   Packages_Uintah_Core_ProblemSpec
+  ${MPI_LIBRARY}
   ${XML_LIBRARY}
 )
+
+if (WIN32)
+  TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_OnTheFlyAnalysis
+    ${Packages_Uintah_CCA_Components_OnTheFlyAnalysis}
+    Packages_Uintah_Core_OS
+  )
+endif()
 
 IF(BUILD_SHARED_LIBS)
   ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_OnTheFlyAnalysis)

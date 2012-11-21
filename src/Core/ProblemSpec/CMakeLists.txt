@@ -34,9 +34,12 @@ SET(Packages_Uintah_Core_ProblemSpec_SRCS
 
 ADD_LIBRARY(Packages_Uintah_Core_ProblemSpec ${Packages_Uintah_Core_ProblemSpec_SRCS})
 
+message(STATUS "Core/ProblemSpec linking to xml library ${XML2_LIBRARY}")
+
 TARGET_LINK_LIBRARIES(Packages_Uintah_Core_ProblemSpec
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Util
+  Packages_Uintah_Core_Thread
   ${XML2_LIBRARY}
 )
 

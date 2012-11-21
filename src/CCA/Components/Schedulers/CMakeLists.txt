@@ -71,11 +71,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Schedulers
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Parallel
   Packages_Uintah_Core_Exceptions
-  Core_Geometry
-  Core_Containers
-  Core_Thread
-  Core_Exceptions
-  Core_Util
+  Packages_Uintah_Core_Thread
   ${XML2_LIBRARY}
   ${TAU_LIBRARY}
   ${MPI_LIBS}

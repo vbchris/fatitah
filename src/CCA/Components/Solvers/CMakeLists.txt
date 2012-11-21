@@ -64,12 +64,7 @@ ENDIF (HYPRE_LIBRARY)
 
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Solvers ${Packages_Uintah_CCA_Components_Solvers_SRCS})
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Solvers
-  Core_Containers
-  Core_Exceptions
-  Core_Geometry
-  Core_Thread
-  Core_Util
-  Core_Geometry
+  Packages_Uintah_Core_Thread
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Grid

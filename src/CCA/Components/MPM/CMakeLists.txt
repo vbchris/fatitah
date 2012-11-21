@@ -64,14 +64,10 @@ SET(LIBS
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_GeometryPiece
   Packages_Uintah_Core_Math
-  Core_Exceptions
-  Core_Thread
-  Core_Geometry
-  Core_Util
-  Core_Math
   ${XML2_LIBRARY}
   ${VT_LIBRARY}
   ${M_LIBRARY}
+  ${MPI_LIBRARY}
 )
 
 IF (PETSC_LIBRARY)

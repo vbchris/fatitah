@@ -31,7 +31,8 @@ include $(SCIRUN_SCRIPTS)/smallso_prologue.mk
 
 SRCDIR   := CCA/Components/ICE
 
-SRCS       += $(SRCDIR)/ICE.cc \
+SRCS       += \
+       $(SRCDIR)/ICE.cc \
        $(SRCDIR)/AMRICE.cc \
        $(SRCDIR)/ICEDebug.cc \
        $(SRCDIR)/ICEMaterial.cc \

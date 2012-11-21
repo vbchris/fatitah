@@ -40,9 +40,6 @@ SET(Packages_Uintah_CCA_Components_SwitchingCriteria_SRCS
 ADD_LIBRARY(Packages_Uintah_CCA_Components_SwitchingCriteria ${Packages_Uintah_CCA_Components_SwitchingCriteria_SRCS})
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_SwitchingCriteria
-  Core_Exceptions
-  Core_Geometry
-  Core_Util
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
