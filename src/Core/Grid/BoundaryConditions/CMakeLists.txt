@@ -28,18 +28,21 @@
 
 # CMakeLists.txt for Packages/Uintah/Core/Grid/BoundaryConditions
 
-add_sources(AnnulusBCData.cc
-  BCDataArray.cc
-  BCData.cc
-  BCGeomBase.cc
-  BCUtils.cc
-  BoundCondFactory.cc
-  BoundCondReader.cc
-  CircleBCData.cc
-  DifferenceBCData.cc
-  EllipseBCData.cc
-  RectangleBCData.cc
-  SideBCData.cc
-  UnionBCData.cc
+SET(Packages_Uintah_Core_Grid_SRCS
+  ${Packages_Uintah_Core_Grid_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/AnnulusBCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/BCDataArray.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/BCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/BCGeomBase.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/BCUtils.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/BoundCondFactory.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/BoundCondReader.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/CircleBCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/DifferenceBCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/EllipseBCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/RectangleBCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/SideBCData.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/UnionBCData.cc
+  PARENT_SCOPE
 )
 

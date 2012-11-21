@@ -28,9 +28,11 @@
 
 # CMakeLists.txt for Packages/Uintah/Core/Grid/Variables
 
-add_sources(
-  PatchBVHBase.cc
-  PatchBVH.cc
-  PatchBVHLeaf.cc
-  PatchBVHNode.cc
+SET(Packages_Uintah_Core_Grid_SRCS
+  ${Packages_Uintah_Core_Grid_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/PatchBVHBase.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/PatchBVH.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/PatchBVHLeaf.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/PatchBVHNode.cc
+  PARENT_SCOPE
 )

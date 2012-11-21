@@ -54,6 +54,7 @@ SET(Packages_Uintah_Core_GeometryPiece_SRCS
   SmoothGeomPiece.cc 
   SmoothCylGeomPiece.cc 
   CorrugEdgeGeomPiece.cc 
+  EllipsoidGeometryPiece.cc 
 )
 
 ADD_LIBRARY(Packages_Uintah_Core_GeometryPiece ${Packages_Uintah_Core_GeometryPiece_SRCS})

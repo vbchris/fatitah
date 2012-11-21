@@ -76,6 +76,7 @@ TARGET_LINK_LIBRARIES(compare_uda
   Packages_Uintah_Core_Malloc
   Packages_Uintah_Core_Thread
   Packages_Uintah_Core_Math
+  Packages_Uintah_Core_Util
 )
 
 TARGET_LINK_LIBRARIES(partvarRange
@@ -87,6 +88,7 @@ TARGET_LINK_LIBRARIES(partvarRange
 TARGET_LINK_LIBRARIES(restart_merger
   Packages_Uintah_Core_DataArchive
   Packages_Uintah_Core_Grid
+  Packages_Uintah_Core_OS
   Packages_Uintah_Core_ProblemSpec
   Packages_Uintah_CCA_Components_DataArchiver
 )

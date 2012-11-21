@@ -28,35 +28,36 @@
 
 # CMakeLists.txt for Packages/Uintah/Core/Grid/Variables
 
-add_sources(CellIterator.cc
-  ComputeSet.cc
-  ComputeSet_special.cc
-  DataItem.cc
-  DifferenceIterator.cc
-  GridIterator.cc
-  GridSurfaceIterator.cc
-  GridVariableBase.cc*
-  Iterator.cc
-  ListOfCellsIterator.cc
-  LocallyComputedPatchVarMap.cc
-  NodeIterator.cc
-  ParticleSubset.cc
-  ParticleVariableBase.cc
-  ParticleVariable_special.cc
-  PerPatchBase.cc
-  PSPatchMatlGhost.cc
-  PSPatchMatlGhostRange.cc
-  ReductionVariableBase.cc
-  ReductionVariable_special.cc
-  ScrubItem.cc
-  SoleVariableBase.cc
-  SoleVariable_special.cc
-  Stencil4.cc
-  Stencil7.cc
-  ugc_templates.cc
-  UnionIterator.cc
-  Utils.cc
-  Variable.cc
-  VarLabel.cc
+SET(Packages_Uintah_Core_Grid_SRCS
+  ${Packages_Uintah_Core_Grid_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/Iterator.cc                   
+  ${CMAKE_CURRENT_SOURCE_DIR}/CellIterator.cc               
+  ${CMAKE_CURRENT_SOURCE_DIR}/NodeIterator.cc               
+  ${CMAKE_CURRENT_SOURCE_DIR}/GridIterator.cc               
+  ${CMAKE_CURRENT_SOURCE_DIR}/GridSurfaceIterator.cc        
+  ${CMAKE_CURRENT_SOURCE_DIR}/ListOfCellsIterator.cc        
+  ${CMAKE_CURRENT_SOURCE_DIR}/DifferenceIterator.cc         
+  ${CMAKE_CURRENT_SOURCE_DIR}/UnionIterator.cc              
+  ${CMAKE_CURRENT_SOURCE_DIR}/ComputeSet.cc                 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ComputeSet_special.cc         
+  ${CMAKE_CURRENT_SOURCE_DIR}/GridVariableBase.cc           
+  ${CMAKE_CURRENT_SOURCE_DIR}/LocallyComputedPatchVarMap.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ParticleSubset.cc             
+  ${CMAKE_CURRENT_SOURCE_DIR}/ParticleVariableBase.cc       
+  ${CMAKE_CURRENT_SOURCE_DIR}/ParticleVariable_special.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/PerPatchBase.cc               
+  ${CMAKE_CURRENT_SOURCE_DIR}/PSPatchMatlGhost.cc           
+  ${CMAKE_CURRENT_SOURCE_DIR}/PSPatchMatlGhostRange.cc      
+  ${CMAKE_CURRENT_SOURCE_DIR}/ReductionVariableBase.cc      
+  ${CMAKE_CURRENT_SOURCE_DIR}/ReductionVariable_special.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScrubItem.cc                  
+  ${CMAKE_CURRENT_SOURCE_DIR}/SoleVariableBase.cc           
+  ${CMAKE_CURRENT_SOURCE_DIR}/Stencil7.cc                   
+  ${CMAKE_CURRENT_SOURCE_DIR}/Stencil4.cc                   
+  ${CMAKE_CURRENT_SOURCE_DIR}/Utils.cc                      
+  ${CMAKE_CURRENT_SOURCE_DIR}/ugc_templates.cc              
+  ${CMAKE_CURRENT_SOURCE_DIR}/VarLabel.cc                   
+  ${CMAKE_CURRENT_SOURCE_DIR}/Variable.cc                   
+  PARENT_SCOPE
 )
 

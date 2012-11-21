@@ -45,6 +45,10 @@ SET(Packages_Uintah_Core_Util_SRCS
   TypeDescription.cc    
   ProgressiveWarning.cc 
   Util.cc 
+  DynamicLoader.cc      
+  DynamicCompilation.cc 
+  soloader.cc           
+  Socket.cc             
   ${REFCOUNT_IMPL}
 )
 

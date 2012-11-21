@@ -61,6 +61,8 @@ add_subdirectory(BoundaryConditions)
 add_subdirectory(Variables)
 add_subdirectory(PatchBVH)
 
+#message(STATUS "Core/Grid sources are ${Packages_Uintah_Core_Grid_SRCS}")
+
 ADD_LIBRARY(Packages_Uintah_Core_Grid ${Packages_Uintah_Core_Grid_SRCS})
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Grid
@@ -71,8 +73,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Parallel
   Packages_Uintah_Core_ProblemSpec
   Packages_Uintah_Core_Math
-  Packages_Uintah_Core_Disclosure
-  ${MPI_LIBS}
+  ${MPI_LIBRARY}
   ${Z_LIBRARY}
 )
 
