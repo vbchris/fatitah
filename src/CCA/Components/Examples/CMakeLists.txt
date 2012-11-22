@@ -46,10 +46,27 @@ SET(Packages_Uintah_CCA_Components_Examples_SRCS
   Benchmark.cc         
 )
 
+set(Examples_LIBS
+  Packages_Uintah_CCA_Ports
+  Packages_Uintah_Core_Grid
+  Packages_Uintah_Core_Util
+  Packages_Uintah_Core_ProblemSpec
+  Packages_Uintah_Core_GeometryPiece
+  Packages_Uintah_Core_Exceptions
+  Packages_Uintah_Core_Disclosure
+  Packages_Uintah_Core_Math
+  Packages_Uintah_Core_Parallel
+)
+
 if (RADIATION)
   SET(Packages_Uintah_CCA_Components_Examples_SRCS
     ${Packages_Uintah_CCA_Components_Examples_SRCS}
     RMCRT_Test.cc       
+  )
+  set(Examples_LIBS
+    ${Examples_LIBS}
+    Packages_Uintah_CCA_Components_Models_Radiation
+    Packages_Uintah_CCA_Components_Arches_Radiation
   )
 endif (RADIATION)
 
@@ -66,16 +83,10 @@ endif (CUDA)
 
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Examples ${Packages_Uintah_CCA_Components_Examples_SRCS})
 
+message(STATUS "Examples libs are ${Examples_LIBS}")
+
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Examples
-  Packages_Uintah_CCA_Ports
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_ProblemSpec
-  Packages_Uintah_Core_GeometryPiece
-  Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Disclosure
-  Packages_Uintah_Core_Math
-  Packages_Uintah_Core_Parallel
+  ${Examples_LIBS}
   ${XML2_LIBRARY}
   ${M_LIBRARY}
   ${CUDA_LIBRARY}

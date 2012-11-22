@@ -26,31 +26,21 @@
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/CCA/Components/Arches/Mixing
+# CMakeLists.txt for Packages/Uintah/CCA/Components/Arches/TransportEqns
 
-SET(Packages_Uintah_CCA_Components_Arches_Mixing_SRCS
-  MixingModel.cc
-  ColdflowMixingModel.cc
-  NewStaticMixingTable.cc
-  StandardTable.cc
-  Stream.cc
-  InletStream.cc
+set(TransportEqn_SRCS
+  ${CMAKE_CURRENT_SOURCE_DIR}/Discretization_new.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/DQMOMEqn.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/DQMOMEqnFactory.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/EqnBase.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/EqnFactory.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScalarEqn.cc
 )
 
-ADD_LIBRARY(Packages_Uintah_CCA_Components_Arches_Mixing ${Packages_Uintah_CCA_Components_Arches_Mixing_SRCS})
-
-TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Arches_Mixing
-  Packages_Uintah_Core_ProblemSpec
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Math
-  Packages_Uintah_CCA_Components_Models
-  Packages_Uintah_Core_Thread
-  ${XML2_LIBRARY}
-  ${M_LIBRARY}
-  ${F_LIBRARY}
+SET(Packages_Uintah_CCA_Components_Arches_SRCS
+  ${TransportEqn_SRCS}
+  ${Packages_Uintah_CCA_Components_Arches_SRCS}
+  PARENT_SCOPE
 )
 
-IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_Arches_Mixing)
-ENDIF(BUILD_SHARED_LIBS)
+

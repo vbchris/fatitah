@@ -70,34 +70,34 @@ FORTRAN_DEPENDENCY(fortran/get_ramping_factor.F CCA_Components_Arches)
 
 SET(Packages_Uintah_CCA_Components_Arches_SRCS
   ${CCA_Components_Arches_FORTRAN_SRCS}
-  Arches.cc
-  ArchesConstVariables.cc
-  ArchesLabel.cc
-  ArchesMaterial.cc
-  ArchesVariables.cc
-  BoundaryCondition.cc
-  BoundaryCond_new.cc
-  CellInformation.cc
-  CompDynamicProcedure.cc
-  Discretization.cc
-  DQMOM.cc
-  EnthalpySolver.cc
-  ExplicitSolver.cc
-  ExplicitTimeInt.cc
-  IncDynamicProcedure.cc
-  IntrusionBC.cc
-  LU.cc
-  MomentumSolver.cc
-  NonlinearSolver.cc
-  PhysicalConstants.cc
-  PressureSolverV2.cc
-  Properties.cc
-  RHSSolver.cc
-  ScalarSolver.cc
-  ScaleSimilarityModel.cc
-  SmagorinskyModel.cc
-  Source.cc
-  TurbulenceModel.cc
+  Arches.cc                    
+  ArchesConstVariables.cc      
+  ArchesLabel.cc               
+  ArchesMaterial.cc            
+  ArchesVariables.cc           
+  BoundaryCondition.cc         
+  BoundaryCond_new.cc          
+  CellInformation.cc           
+  CompDynamicProcedure.cc      
+  Discretization.cc            
+  DQMOM.cc                     
+  EnthalpySolver.cc            
+  ExplicitSolver.cc            
+  ExplicitTimeInt.cc           
+  IncDynamicProcedure.cc       
+  IntrusionBC.cc               
+  LU.cc                        
+  MomentumSolver.cc            
+  NonlinearSolver.cc           
+  PhysicalConstants.cc         
+  PressureSolverV2.cc          
+  Properties.cc                
+  RHSSolver.cc                 
+  ScalarSolver.cc              
+  ScaleSimilarityModel.cc      
+  SmagorinskyModel.cc          
+  Source.cc                    
+  TurbulenceModel.cc           
   TurbulenceModelPlaceholder.cc
 
   # fortran files without fspec
@@ -106,23 +106,23 @@ SET(Packages_Uintah_CCA_Components_Arches_SRCS
 )
 
 SET(LIBS 
+  ${LIBS}
   Packages_Uintah_Core_ProblemSpec
   Packages_Uintah_Core_GeometryPiece
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Util
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
-  Packages_Uintah_CCA_Components_Arches_Mixing
-  Packages_Uintah_CCA_Components_Arches_Radiation
   Packages_Uintah_CCA_Components_OnTheFlyAnalysis
   Packages_Uintah_CCA_Ports
   Packages_Uintah_Core_Parallel
-  Core_Util
-  Core_Thread
-  Core_Exceptions
-  Core_Geometry
-  Core_Containers
-  ${LIBS}
+  Packages_Uintah_Core_Thread
+  Packages_Uintah_Core_Containers
+  Packages_Uintah_Core_IO
+  Packages_Uintah_Core_Datatypes
+  Packages_Uintah_CCA_Components_Arches_Mixing
+  Packages_Uintah_CCA_Components_Arches_Radiation
+  Arches_CoalModels
   ${XML2_LIBRARY}
   ${F_LIBRARY}
   ${M_LIBRARY}
@@ -138,14 +138,21 @@ IF(HYPRE_LIBRARY)
   SET(LIBS ${LIBS} ${HYPRE_LIBRARY})
 ENDIF(HYPRE_LIBRARY)
 
+add_subdirectory(ChemMix)            
+add_subdirectory(WallHTModels)       
+add_subdirectory(DigitalFilter)      
+add_subdirectory(PropertyModels)     
+add_subdirectory(SourceTerms)        
+add_subdirectory(TransportEqns)      
 
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Arches ${Packages_Uintah_CCA_Components_Arches_SRCS})
 SET_TARGET_PROPERTIES(Packages_Uintah_CCA_Components_Arches PROPERTIES LINKER_LANGUAGE CXX)
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Arches ${LIBS})
 
-ADD_SUBDIRECTORY(Mixing)
 ADD_SUBDIRECTORY(Radiation)
+ADD_SUBDIRECTORY(Mixing)
+add_subdirectory(CoalModels)         
 
 IF(BUILD_SHARED_LIBS)
   ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_Arches)

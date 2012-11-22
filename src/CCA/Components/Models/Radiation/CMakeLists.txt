@@ -75,9 +75,8 @@ SET(LIBS
   Packages_Uintah_Core_Util
   Packages_Uintah_CCA_Ports
   Packages_Uintah_CCA_Components_ICE
-  Core_Exceptions
-  Core_Util
 )
+
 
 IF (PETSC_LIBRARY)
   SET(Packages_Uintah_CCA_Components_Models_Radiation_SRCS ${Packages_Uintah_CCA_Components_Models_Radiation_SRCS} Models_PetscSolver.cc)
@@ -91,10 +90,13 @@ IF (HYPRE_LIBRARY)
   SET(LIBS ${LIBS} ${HYPRE_LIBRARIES})
 ENDIF (HYPRE_LIBRARY)
 
+add_subdirectory(RMCRT)
+
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Models_Radiation ${Packages_Uintah_CCA_Components_Models_Radiation_SRCS})
 SET_TARGET_PROPERTIES(Packages_Uintah_CCA_Components_Models_Radiation PROPERTIES LINKER_LANGUAGE CXX)
 
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Models_Radiation ${LIBS} ${F_LIBRARY})
+
 
 IF(BUILD_SHARED_LIBS)
   ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_Models_Radiation)

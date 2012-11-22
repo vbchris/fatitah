@@ -65,10 +65,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_MPMArches
   Packages_Uintah_CCA_Components_MPM
   Packages_Uintah_CCA_Components_Arches
   Packages_Uintah_CCA_Components_Arches_Mixing
-  Core_Exceptions
-  Core_Util
-  Core_Thread
-  Core_Geometry
+  Packages_Uintah_Core_Thread
   ${XML2_LIBRARY}
   ${PETSC_LIBRARY}
   ${M_LIBRARY}

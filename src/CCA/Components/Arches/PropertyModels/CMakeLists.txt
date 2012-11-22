@@ -26,31 +26,20 @@
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/CCA/Components/Arches/Mixing
+# CMakeLists.txt for Packages/Uintah/CCA/Components/Arches/PropertyModels
 
-SET(Packages_Uintah_CCA_Components_Arches_Mixing_SRCS
-  MixingModel.cc
-  ColdflowMixingModel.cc
-  NewStaticMixingTable.cc
-  StandardTable.cc
-  Stream.cc
-  InletStream.cc
+SET(Packages_Uintah_CCA_Components_Arches_SRCS
+  ${Packages_Uintah_CCA_Components_Arches_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/PropertyModelBase.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/PropertyModelFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ABSKP.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ExtentRxn.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/TabStripFactor.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/EmpSoot.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/AlgebraicScalarDiss.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScalarVarianceScaleSim.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/HeatLoss.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ConstProperty.cc
+  PARENT_SCOPE
 )
 
-ADD_LIBRARY(Packages_Uintah_CCA_Components_Arches_Mixing ${Packages_Uintah_CCA_Components_Arches_Mixing_SRCS})
-
-TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Arches_Mixing
-  Packages_Uintah_Core_ProblemSpec
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Math
-  Packages_Uintah_CCA_Components_Models
-  Packages_Uintah_Core_Thread
-  ${XML2_LIBRARY}
-  ${M_LIBRARY}
-  ${F_LIBRARY}
-)
-
-IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_Arches_Mixing)
-ENDIF(BUILD_SHARED_LIBS)

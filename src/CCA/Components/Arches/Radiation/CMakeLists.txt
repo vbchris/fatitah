@@ -63,10 +63,7 @@ SET(LIBS
   Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Math
-  Core_Exceptions
-  Core_Util
-  Core_Thread
-  Core_Geometry
+  Packages_Uintah_Core_Thread
 )
 
 IF(PETSC_LIBRARY)

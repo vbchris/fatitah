@@ -26,31 +26,54 @@
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/CCA/Components/Arches/Mixing
+# CMakeLists.txt for Packages/Uintah/CCA/Components/Arches
 
-SET(Packages_Uintah_CCA_Components_Arches_Mixing_SRCS
-  MixingModel.cc
-  ColdflowMixingModel.cc
-  NewStaticMixingTable.cc
-  StandardTable.cc
-  Stream.cc
-  InletStream.cc
+FORTRAN_DEPENDENCY(fortran/rqpart.F Arches_CoalModels)
+
+SET(Arches_CoalModels_SRCS
+  ${Arches_CoalModels_FORTRAN_SRCS}
+  CoalModelFactory.cc 
+  ModelBase.cc 
+  PartVel.cc 
+  Devolatilization.cc 
+  CharOxidation.cc 
+  KobayashiSarofimDevol.cc 
+  YamamotoDevol.cc 
+  CharOxidationShaddix.cc 
+  ConstantModel.cc  
+  HeatTransfer.cc 
+  SimpleHeatTransfer.cc 
+  ShaddixHeatTransfer.cc 
+  EnthalpyShaddix.cc 
+  XDragModel.cc 
+  YDragModel.cc 
+  ZDragModel.cc 
+  DragModel.cc
 )
 
-ADD_LIBRARY(Packages_Uintah_CCA_Components_Arches_Mixing ${Packages_Uintah_CCA_Components_Arches_Mixing_SRCS})
-
-TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Arches_Mixing
+SET(LIBS 
   Packages_Uintah_Core_ProblemSpec
+  Packages_Uintah_Core_GeometryPiece
+  Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Util
+  Packages_Uintah_Core_Disclosure
   Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Math
-  Packages_Uintah_CCA_Components_Models
+  Packages_Uintah_CCA_Components_OnTheFlyAnalysis
+  Packages_Uintah_CCA_Ports
+  Packages_Uintah_Core_Parallel
   Packages_Uintah_Core_Thread
+  Packages_Uintah_Core_Containers
+  Packages_Uintah_Core_IO
   ${XML2_LIBRARY}
-  ${M_LIBRARY}
   ${F_LIBRARY}
+  ${M_LIBRARY}
 )
+
+ADD_LIBRARY(Arches_CoalModels ${Arches_CoalModels_SRCS})
+SET_TARGET_PROPERTIES(Arches_CoalModels PROPERTIES LINKER_LANGUAGE CXX)
+
+TARGET_LINK_LIBRARIES(Arches_CoalModels ${LIBS})
 
 IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_Arches_Mixing)
+  ADD_DEFINITIONS(-DBUILD_Arches_CoalModels)
 ENDIF(BUILD_SHARED_LIBS)
