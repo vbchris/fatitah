@@ -28,10 +28,12 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/ICE/Advection
 
-add_sources(
-  Advector.cc 
-  FirstOrderAdvector.cc 
-  SecondOrderAdvector.cc 
-  SecondOrderBase.cc 
-  AdvectionFactory.cc
+SET(Packages_Uintah_CCA_Components_ICE_SRCS
+  ${Packages_Uintah_CCA_Components_ICE_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/Advector.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/FirstOrderAdvector.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/SecondOrderAdvector.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/SecondOrderBase.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/AdvectionFactory.cc
+  PARENT_SCOPE
 )

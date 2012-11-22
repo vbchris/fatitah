@@ -28,10 +28,12 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/ICE/SpecificHeatModel
 
-add_sources(
-  SpecificHeatFactory.cc    
-  SpecificHeat.cc           
-  Debye.cc                  
-  Component.cc              
-  Polynomial.cc       
+SET(Packages_Uintah_CCA_Components_ICE_SRCS
+  ${Packages_Uintah_CCA_Components_ICE_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/SpecificHeatFactory.cc    
+  ${CMAKE_CURRENT_SOURCE_DIR}/SpecificHeat.cc           
+  ${CMAKE_CURRENT_SOURCE_DIR}/Debye.cc                  
+  ${CMAKE_CURRENT_SOURCE_DIR}/Component.cc              
+  ${CMAKE_CURRENT_SOURCE_DIR}/Polynomial.cc       
+  PARENT_SCOPE
 )

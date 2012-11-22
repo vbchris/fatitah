@@ -28,13 +28,15 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/PhysicalBC
 
-add_sources(
-  MPMPhysicalBCFactory.cc   
-  ForceBC.cc                
-  PressureBC.cc            
-  CrackBC.cc      
-  HeatFluxBC.cc      
-  ArchesHeatFluxBC.cc    
-  PolynomialData.cc    
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/MPMPhysicalBCFactory.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/ForceBC.cc                
+  ${CMAKE_CURRENT_SOURCE_DIR}/PressureBC.cc            
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrackBC.cc      
+  ${CMAKE_CURRENT_SOURCE_DIR}/HeatFluxBC.cc      
+  ${CMAKE_CURRENT_SOURCE_DIR}/ArchesHeatFluxBC.cc    
+  ${CMAKE_CURRENT_SOURCE_DIR}/PolynomialData.cc    
+  PARENT_SCOPE
 )
 

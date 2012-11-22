@@ -30,23 +30,23 @@
 
 set(FORTRAN_CM_FLAGS "${CMAKE_Fortran_FLAGS} -DI1SOFTLIM -DNEWXSV -DDILAT_LIM")
 
-set(FORTRAN_CM_SRC,
-  Hooke.F  
-  Kayenta_calcs.F  
-  MIGUtilsF.F  
-  MIGUtils.cc   
-  diamm.F
+set(FORTRAN_CM_SRC 
+  ${CMAKE_CURRENT_SOURCE_DIR}/Hooke.F  
+  ${CMAKE_CURRENT_SOURCE_DIR}/Kayenta_calcs.F  
+  ${CMAKE_CURRENT_SOURCE_DIR}/MIGUtilsF.F  
+  ${CMAKE_CURRENT_SOURCE_DIR}/MIGUtils.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/diamm.F
 )
 
 set_source_files_properties(
   ${FORTRAN_CM_SRC}
   PROPERTIES
-    COMPILE_FLAGS ${FORTRAN_CM_FLAGS} ' 
+    COMPILE_FLAGS ${FORTRAN_CM_FLAGS} 
 )
 
-add_sources(
+SET(MPM_ConstitutiveModel_SRCS
+  ${MPM_ConstitutiveModel_SRCS}
   ${FORTRAN_CM_SRC}
+  PARENT_SCOPE
 )
-
-
 

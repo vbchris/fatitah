@@ -8,10 +8,7 @@ TARGET_LINK_LIBRARIES(SimpleMath
         Packages_Uintah_Core_ProblemSpec   
         Packages_Uintah_Core_Parallel      
         Packages_Uintah_Core_Disclosure    
-        Core_Exceptions  
-        Core_Geometry    
-        Core_Persistent  
-        Core_Util        
-        Core_Thread      
-        Core_Containers
+        Packages_Uintah_Core_Persistent  
+        Packages_Uintah_Core_Thread      
+        Packages_Uintah_Core_Containers
 )

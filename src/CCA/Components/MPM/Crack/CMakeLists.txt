@@ -28,22 +28,24 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/Crack
 
-add_sources(
-  ReadAndDiscretizeCracks.cc 
-  CrackGeometryFactory.cc 
-  CrackGeometry.cc 
-  NullCrack.cc 
-  QuadCrack.cc 
-  CurvedQuadCrack.cc 
-  TriangularCrack.cc 
-  ArcCrack.cc 
-  EllipticCrack.cc 
-  PartialEllipticCrack.cc 
-  ParticleNodePairVelocityField.cc 
-  CrackSurfaceContact.cc 
-  FractureParametersCalculation.cc 
-  CrackPropagation.cc 
-  MoveCracks.cc 
-  UpdateCrackFront.cc 
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/ReadAndDiscretizeCracks.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrackGeometryFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrackGeometry.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/NullCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/QuadCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/CurvedQuadCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/TriangularCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ArcCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/EllipticCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/PartialEllipticCrack.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ParticleNodePairVelocityField.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrackSurfaceContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/FractureParametersCalculation.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/CrackPropagation.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/MoveCracks.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/UpdateCrackFront.cc 
+  PARENT_SCOPE
 )
 

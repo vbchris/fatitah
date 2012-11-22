@@ -28,7 +28,7 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/ConstitutiveModel
 
-add_sources(
+SET(MPM_ConstitutiveModel_SRCS
   RigidMaterial.cc              
   CompMooneyRivlin.cc           
   ConstitutiveModelFactory.cc   
@@ -63,18 +63,45 @@ add_sources(
 )
 
 if (FORTRAN)
-  add_sources(
+  SET(MPM_ConstitutiveModel_SRCS
+    ${MPM_ConstitutiveModel_SRCS}
     Diamm.cc                      
     HypoElasticFortran.cc         
     Kayenta.cc                    
   )
+  add_subdirectory(fortran)
 endif(FORTRAN)
 
 add_subdirectory(PlasticityModels)
 add_subdirectory(Biswajit)
 
-if (FORTRAN)
-  add_subdirectory(fortran)
-endif(FORTRAN)
+SET(LIBS
+  Packages_Uintah_CCA_Ports
+  Packages_Uintah_Core_Grid
+  Packages_Uintah_Core_Util
+  Packages_Uintah_Core_Disclosure
+  Packages_Uintah_Core_Labels
+  Packages_Uintah_Core_ProblemSpec
+  Packages_Uintah_Core_Parallel
+  Packages_Uintah_Core_Exceptions
+  Packages_Uintah_Core_GeometryPiece
+  Packages_Uintah_Core_Math
+  MPM_ConstitutiveModel_PlasticityModels
+  MPM_ConstitutiveModel_Biswajit
+  ${XML2_LIBRARY}
+  ${VT_LIBRARY}
+  ${M_LIBRARY}
+  ${MPI_LIBRARY}
+)
+
+ADD_LIBRARY(MPM_ConstitutiveModel ${MPM_ConstitutiveModel_SRCS})
+
+TARGET_LINK_LIBRARIES(MPM_ConstitutiveModel ${LIBS})
+
+IF(BUILD_SHARED_LIBS)
+  ADD_DEFINITIONS(-DBUILD_MPM_ConstitutiveModel)
+ENDIF(BUILD_SHARED_LIBS)
+
+
 
 

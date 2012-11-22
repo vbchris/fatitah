@@ -64,6 +64,7 @@ SET(LIBS
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_GeometryPiece
   Packages_Uintah_Core_Math
+  MPM_ConstitutiveModel
   ${XML2_LIBRARY}
   ${VT_LIBRARY}
   ${M_LIBRARY}

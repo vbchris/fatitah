@@ -28,8 +28,10 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/HeatConduction
 
-add_sources(
-  HeatConduction.cc 
-  ImplicitHeatConduction.cc 
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/HeatConduction.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ImplicitHeatConduction.cc 
+  PARENT_SCOPE
 )
 

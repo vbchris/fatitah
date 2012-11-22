@@ -28,15 +28,17 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/Models/FluidsBased
 
-add_sources(
-  SolidReactionModel.cc       
-  NthOrderModel.cc            
-  PowerModel.cc               
-  AvaramiErofeevModel.cc      
-  DiffusionModel.cc           
-  ContractingCylinderModel.cc 
-  ContractingSphereModel.cc   
-  ProutTompkinsModel.cc       
-  Arrhenius.cc                
-  ModifiedArrhenius.cc
+SET(Packages_Uintah_CCA_Components_Models_SRCS
+  ${Packages_Uintah_CCA_Components_Models_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/SolidReactionModel.cc       
+  ${CMAKE_CURRENT_SOURCE_DIR}/NthOrderModel.cc            
+  ${CMAKE_CURRENT_SOURCE_DIR}/PowerModel.cc               
+  ${CMAKE_CURRENT_SOURCE_DIR}/AvaramiErofeevModel.cc      
+  ${CMAKE_CURRENT_SOURCE_DIR}/DiffusionModel.cc           
+  ${CMAKE_CURRENT_SOURCE_DIR}/ContractingCylinderModel.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ContractingSphereModel.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/ProutTompkinsModel.cc       
+  ${CMAKE_CURRENT_SOURCE_DIR}/Arrhenius.cc                
+  ${CMAKE_CURRENT_SOURCE_DIR}/ModifiedArrhenius.cc
+  PARENT_SCOPE
 )

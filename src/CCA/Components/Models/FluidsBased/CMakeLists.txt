@@ -28,22 +28,28 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/Models/FluidsBased
 
-add_sources(
-  ArchesTable.cc    
-  TableInterface.cc 
-  TableFactory.cc 
+SET(Packages_Uintah_CCA_Components_Models_SRCS
+  ${Packages_Uintah_CCA_Components_Models_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/ArchesTable.cc    
+  ${CMAKE_CURRENT_SOURCE_DIR}/TableInterface.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/TableFactory.cc 
 )
 if(ICE)
-  add_sources(
-    AdiabaticTable.cc     
-    flameSheet_rxn.cc     
-    MaterialProperties.cc 
-    Mixing.cc             
-    NonAdiabaticTable.cc  
-    PassiveScalar.cc      
-    SimpleRxn.cc          
-    TestModel.cc          
-    MassMomEng_src.cc
+  SET(Packages_Uintah_CCA_Components_Models_SRCS
+    ${Packages_Uintah_CCA_Components_Models_SRCS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/AdiabaticTable.cc     
+    ${CMAKE_CURRENT_SOURCE_DIR}/flameSheet_rxn.cc     
+    ${CMAKE_CURRENT_SOURCE_DIR}/MaterialProperties.cc 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Mixing.cc             
+    ${CMAKE_CURRENT_SOURCE_DIR}/NonAdiabaticTable.cc  
+    ${CMAKE_CURRENT_SOURCE_DIR}/PassiveScalar.cc      
+    ${CMAKE_CURRENT_SOURCE_DIR}/SimpleRxn.cc          
+    ${CMAKE_CURRENT_SOURCE_DIR}/TestModel.cc          
+    ${CMAKE_CURRENT_SOURCE_DIR}/MassMomEng_src.cc
   )
 endif(ICE)
+SET(Packages_Uintah_CCA_Components_Models_SRCS
+  ${Packages_Uintah_CCA_Components_Models_SRCS}
+  PARENT_SCOPE
+)
 

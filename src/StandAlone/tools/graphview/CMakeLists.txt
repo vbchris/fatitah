@@ -7,6 +7,6 @@ IF(NOT WIN32)
     Packages_Uintah_Core_ProblemSpec
     Packages_Uintah_Core_Util
     Packages_Uintah_CCA_Components_ProblemSpecification
-    Core_Exceptions)
+    Packages_Uintah_Core_Exceptions)
 
 ENDIF(NOT WIN32)

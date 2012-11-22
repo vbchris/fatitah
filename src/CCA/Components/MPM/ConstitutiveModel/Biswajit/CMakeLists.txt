@@ -28,7 +28,7 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/ConstitutiveModel/Biswajit
 
-add_sources(
+SET(MPM_ConstitutiveModel_Biswajit_SRCS
   CamClay.cc                
   Arena.cc                  
   HyperelasticPlastic.cc    
@@ -37,3 +37,27 @@ add_sources(
 
 add_subdirectory(Models)
 
+SET(LIBS
+  Packages_Uintah_CCA_Ports
+  Packages_Uintah_Core_Grid
+  Packages_Uintah_Core_Util
+  Packages_Uintah_Core_Disclosure
+  Packages_Uintah_Core_Labels
+  Packages_Uintah_Core_ProblemSpec
+  Packages_Uintah_Core_Parallel
+  Packages_Uintah_Core_Exceptions
+  Packages_Uintah_Core_GeometryPiece
+  Packages_Uintah_Core_Math
+  ${XML2_LIBRARY}
+  ${VT_LIBRARY}
+  ${M_LIBRARY}
+  ${MPI_LIBRARY}
+)
+
+ADD_LIBRARY(MPM_ConstitutiveModel_Biswajit ${MPM_ConstitutiveModel_Biswajit_SRCS})
+
+TARGET_LINK_LIBRARIES(MPM_ConstitutiveModel_Biswajit ${LIBS})
+
+IF(BUILD_SHARED_LIBS)
+  ADD_DEFINITIONS(-DBUILD_MPM_ConstitutiveModel_Biswajit)
+ENDIF(BUILD_SHARED_LIBS)

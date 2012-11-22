@@ -28,7 +28,9 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/MMS
 
-add_sources(
-  MMS.cc
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/MMS.cc
+  PARENT_SCOPE
 )
 

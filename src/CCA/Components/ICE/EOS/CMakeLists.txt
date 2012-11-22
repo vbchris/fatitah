@@ -28,19 +28,21 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/ICE/EOS
 
-add_sources(
-  EquationOfState.cc    
-  EquationOfStateFactory.cc 
-  IdealGas.cc               
-  HardSphereGas.cc          
-  TST.cc                    
-  JWL.cc                    
-  JWLC.cc                   
-  Gruneisen.cc              
-  Tillotson.cc              
-  Thomsen_Hartka_water.cc   
-  KnaussSeaWater.cc         
-  KumariDass.cc             
-  Murnaghan.cc              
-  BirchMurnaghan.cc
+SET(Packages_Uintah_CCA_Components_ICE_SRCS
+  ${Packages_Uintah_CCA_Components_ICE_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/EquationOfState.cc    
+  ${CMAKE_CURRENT_SOURCE_DIR}/EquationOfStateFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/IdealGas.cc               
+  ${CMAKE_CURRENT_SOURCE_DIR}/HardSphereGas.cc          
+  ${CMAKE_CURRENT_SOURCE_DIR}/TST.cc                    
+  ${CMAKE_CURRENT_SOURCE_DIR}/JWL.cc                    
+  ${CMAKE_CURRENT_SOURCE_DIR}/JWLC.cc                   
+  ${CMAKE_CURRENT_SOURCE_DIR}/Gruneisen.cc              
+  ${CMAKE_CURRENT_SOURCE_DIR}/Tillotson.cc              
+  ${CMAKE_CURRENT_SOURCE_DIR}/Thomsen_Hartka_water.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/KnaussSeaWater.cc         
+  ${CMAKE_CURRENT_SOURCE_DIR}/KumariDass.cc             
+  ${CMAKE_CURRENT_SOURCE_DIR}/Murnaghan.cc              
+  ${CMAKE_CURRENT_SOURCE_DIR}/BirchMurnaghan.cc
+  PARENT_SCOPE
 )

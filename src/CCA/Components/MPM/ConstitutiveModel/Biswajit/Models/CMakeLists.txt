@@ -28,32 +28,34 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/ConstitutiveModel/Biswajit/Models
 
-add_sources(
-  ModelState.cc 
-  PressureModel.cc 
-  PressureModelFactory.cc 
-  Pressure_Borja.cc 
-  Pressure_Hypoelastic.cc 
-  Pressure_Hyperelastic.cc 
-  Pressure_MieGruneisen.cc 
-  YieldCondition.cc 
-  YieldConditionFactory.cc 
-  YieldCond_CamClay.cc 
-  YieldCond_Gurson.cc 
-  YieldCond_vonMises.cc 
-  ShearModulusModel.cc 
-  ShearModulusModelFactory.cc 
-  ShearModulus_Borja.cc 
-  ShearModulus_Constant.cc 
-  ShearModulus_Nadal.cc 
-  KinematicHardeningModel.cc 
-  KinematicHardeningModelFactory.cc 
-  KinematicHardening_None.cc 
-  KinematicHardening_Prager.cc 
-  KinematicHardening_Armstrong.cc 
-  InternalVariableModel.cc 
-  InternalVariableModelFactory.cc 
-  InternalVar_ArenaKappa.cc 
-  InternalVar_BorjaPressure.cc 
+SET(MPM_ConstitutiveModel_Biswajit_SRCS
+  ${MPM_ConstitutiveModel_Biswajit_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/ModelState.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/PressureModel.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/PressureModelFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/Pressure_Borja.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/Pressure_Hypoelastic.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/Pressure_Hyperelastic.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/Pressure_MieGruneisen.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/YieldCondition.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/YieldConditionFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/YieldCond_CamClay.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/YieldCond_Gurson.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/YieldCond_vonMises.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ShearModulusModel.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ShearModulusModelFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ShearModulus_Borja.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ShearModulus_Constant.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ShearModulus_Nadal.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/KinematicHardeningModel.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/KinematicHardeningModelFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/KinematicHardening_None.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/KinematicHardening_Prager.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/KinematicHardening_Armstrong.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/InternalVariableModel.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/InternalVariableModelFactory.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/InternalVar_ArenaKappa.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/InternalVar_BorjaPressure.cc 
+  PARENT_SCOPE
 )
 

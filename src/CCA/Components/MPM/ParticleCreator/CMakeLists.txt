@@ -28,12 +28,14 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/ParticleCreator
 
-add_sources(
-  ParticleCreator.cc  
-  ParticleCreatorFactory.cc  
-  ImplicitParticleCreator.cc  
-  FractureParticleCreator.cc  
-  MembraneParticleCreator.cc  
-  ShellParticleCreator.cc 
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/ParticleCreator.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/ParticleCreatorFactory.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/ImplicitParticleCreator.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/FractureParticleCreator.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/MembraneParticleCreator.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/ShellParticleCreator.cc 
+  PARENT_SCOPE
 )
 

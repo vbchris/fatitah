@@ -28,11 +28,13 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/ICE/CustomBCs
 
-add_sources(
-  C_BC_driver.cc 
-  microSlipBCs.cc 
-  LODI2.cc
-  MMS_BCs.cc
-  sine.cc
+SET(Packages_Uintah_CCA_Components_ICE_SRCS
+  ${Packages_Uintah_CCA_Components_ICE_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/C_BC_driver.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/microSlipBCs.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/LODI2.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/MMS_BCs.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sine.cc
+  PARENT_SCOPE
 )
 

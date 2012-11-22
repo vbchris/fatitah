@@ -29,12 +29,13 @@
 # CMakeLists.txt for Packages/Uintah/CCA/Components/Regridder
 
 SET(Packages_Uintah_CCA_Components_Regridder_SRCS
-  RegridderCommon.cc
-  RegridderFactory.cc
-  HierarchicalRegridder.cc
-  BNRTask.cc
-  BNRRegridder.cc
-  PatchFixer.cc
+  RegridderCommon.cc 
+  RegridderFactory.cc 
+  HierarchicalRegridder.cc 
+  BNRTask.cc 
+  BNRRegridder.cc 
+  PatchFixer.cc  
+  TiledRegridder.cc
 )
 
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Regridder ${Packages_Uintah_CCA_Components_Regridder_SRCS})

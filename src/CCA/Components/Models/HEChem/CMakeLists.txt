@@ -28,16 +28,18 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/Models/FluidsBased
 
-add_sources(
-  Common.cc        
-  Simple_Burn.cc   
-  Steady_Burn.cc   
-  Unsteady_Burn.cc 
-  IandG.cc         
-  LightTime.cc     
-  JWLpp.cc         
-  ZeroOrder.cc     
-  DDT0.cc          
-  DDT1.cc          
-  MesoBurn.cc
+SET(Packages_Uintah_CCA_Components_Models_SRCS
+  ${Packages_Uintah_CCA_Components_Models_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/Common.cc        
+  ${CMAKE_CURRENT_SOURCE_DIR}/Simple_Burn.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/Steady_Burn.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/Unsteady_Burn.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/IandG.cc         
+  ${CMAKE_CURRENT_SOURCE_DIR}/LightTime.cc     
+  ${CMAKE_CURRENT_SOURCE_DIR}/JWLpp.cc         
+  ${CMAKE_CURRENT_SOURCE_DIR}/ZeroOrder.cc     
+  ${CMAKE_CURRENT_SOURCE_DIR}/DDT0.cc          
+  ${CMAKE_CURRENT_SOURCE_DIR}/DDT1.cc          
+  ${CMAKE_CURRENT_SOURCE_DIR}/MesoBurn.cc
+  PARENT_SCOPE
 )

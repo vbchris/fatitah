@@ -61,27 +61,86 @@ if(WIN32)
   endif(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
 endif(WIN32)
 
-# Turn off Arches, ICE, MPM, or Radiation
-set(DEF_ICE "")
+#----------------------------------------------------------------------------------
+# Configure options
+#----------------------------------------------------------------------------------
+option(MPM          "Build MPM, MPMArches and MPMICE" ON)
+option(ICE          "Build ICE and MPMICE" ON)
+option(ARCHES       "Build Arches" OFF)
+option(WASATCH      "Build Wasatch" OFF)
+option(RADIATION    "Build Arches/Radiation" OFF)
+option(FORTRAN      "Build with fortran" OFF)
+
+# Turn off Arches, Wasatch, ICE, MPM, or Radiation (for sci_defs/uintah_defs.h)
 set(DEF_MPM "")
+set(DEF_ICE "")
+set(DEF_ARCHES "")
+set(DEF_MODELS_RADIATION "")
+set(DEF_WASATCH "")
+set(DEF_NO_FORTRAN "")
 
-option(ICE "Build ICE and MPMICE" ON)
-option(MPM "Build MPM, MPMArches and MPMICE" ON)
-option(ARCHES "Build Arches" OFF)
-option(WASATCH "Build Wasatch" OFF)
-
-if(NOT ICE)
-  set(DEF_ICE "#define NO_ICE")
-endif(NOT ICE)
-if(NOT MPM)
+if (MPM)
+  set(BUILD_MPM "yes")
+  set(USE_MPM   "yes")
+else ()
   set(DEF_MPM "#define NO_MPM")
-endif(NOT MPM)
-if (NOT WASATCH)
-  set(DEF_WASATCH "#define NO_WASATCH")
+  set(BUILD_MPM "no")
+  set(USE_MPM   "no")
 endif()
 
+if (ICE)
+  set(BUILD_ICE "yes")
+  set(USE_ICE   "yes")
+else()
+  set(DEF_ICE "#define NO_ICE")
+  set(BUILD_ICE "no")
+  set(USE_ICE   "no")
+endif()
 
-# fortran files
+if (ARCHES)
+  set(BUILD_ARCHES "yes")
+  set(USE_ARCHES   "yes")
+else()
+  set(DEF_ARCHES "#define NO_ARCHES")
+  set(BUILD_ARCHES "no")
+  set(USE_ARCHES "no")
+endif()
+
+if (RADIATION)
+  set(BUILD_MODELS_RADIATION "yes")
+  set(USE_MODELS_RADIATION "yes")
+else()
+  set(DEF_MODELS_RADIATION "#define NO_MODELS_RADIATION")
+  set(BUILD_MODELS_RADIATION "no")
+  set(USE_MODELS_RADIATION "no")
+endif()
+
+if (WASATCH)
+  set(BUILD_WASATCH "yes")
+  set(USE_WASATCH   "yes")
+else ()
+  set(DEF_WASATCH "#define NO_WASATCH")
+  set(BUILD_WASATCH "no")
+  set(USE_WASATCH "no")
+endif ()
+
+# NO_FORTRAN is used in configVars.mk[.in] and DEF_NO_FORTRAN is used in uintah_testdefs.h.in
+if (FORTRAN)
+  set(NO_FORTRAN "no")
+else ()
+  set(NO_FORTRAN "yes")
+  set(DEF_ARCHES "#define NO_ARCHES")
+  set(DEF_MODELS_RADIATION "#define NO_MODELS_RADIATION")
+  set(DEF_NO_FORTRAN "#define NO_FORTRAN")
+endif ()
+
+#--------------------------------------------------------------------------------
+# Name mangling etc. for fortran files
+# Most fortran compilers need an "_" for C function names.
+# Some have strange underscore needs.  This flag is used in the
+# tools/fspec.pl.in file to generate the correct
+# cname of the fortran function.
+#--------------------------------------------------------------------------------
 enable_language(Fortran)
 
 string(REGEX MATCH gfortran HAVE_GFORTRAN ${CMAKE_Fortran_COMPILER})
@@ -91,29 +150,33 @@ string(REGEX MATCH g77 HAVE_G77 ${CMAKE_Fortran_COMPILER})
 string(REGEX MATCH ifort HAVE_ifORT ${CMAKE_Fortran_COMPILER})
 string(REGEX MATCH f77 HAVE_F77 ${CMAKE_Fortran_COMPILER})
 
-# tried to do 'elseif' but cmake wouldn't let me --bjw
 # DON'T USE find_library - many machine's paths are compiler specific.  The *right* thing would be
 #   to compile a program looking for the fortran lib, but this is probably good enough
 if(HAVE_GFORTRAN)
   set(F_LIBRARY gfortran CACHE string "fortran library")
   find_library(F_LIBRARY NAMES gfortran)
   set(FORTRAN_UNDERSCORE end CACHE string "What type of fortran underscore style - linux,end,none")
+  set(DEF_FORTRAN_UNDERSCORE "#define FORTRAN_UNDERSCORE_END")
 elseif(HAVE_XLF)
   set(F_LIBRARY xlf90 CACHE string "fortran library")
   find_library(F_LIBRARY NAMES xlf90)
   set(FORTRAN_UNDERSCORE none CACHE string "What type of fortran underscore style - linux,end,none")
+  set(DEF_FORTRAN_UNDERSCORE "#define FORTRAN_UNDERSCORE_NONE")
 elseif(HAVE_PGF77)
   set(F_LIBRARY pgftnrtl CACHE string "fortran library")
   find_library(F_LIBRARY NAMES pgftnrtl)
   set(FORTRAN_UNDERSCORE end CACHE string "What type of fortran underscore style - linux,end,none")
+  set(DEF_FORTRAN_UNDERSCORE "#define FORTRAN_UNDERSCORE_END")
 elseif(HAVE_G77)
   set(F_LIBRARY g2c CACHE string "fortran library")
   find_library(F_LIBRARY NAMES g2c)
   set(FORTRAN_UNDERSCORE linux CACHE string "What type of fortran underscore style - linux,end,none")
+  set(DEF_FORTRAN_UNDERSCORE "#define FORTRAN_UNDERSCORE_LINUX")
 elseif(HAVE_ifort)
   set(F_LIBRARY ifcore CACHE string "fortran library")
   find_library(F_LIBRARY NAMES ifcore)
   set(FORTRAN_UNDERSCORE end CACHE string "What type of fortran underscore style - linux,end,none")
+  set(DEF_FORTRAN_UNDERSCORE "#define FORTRAN_UNDERSCORE_END")
 elseif(HAVE_F77)
   # sgi needs ftn fortran
   #if(CMAKE_SYSTEM MATCHES "IRIX.*")
@@ -124,6 +187,7 @@ elseif(HAVE_F77)
   #set(FORTRAN_UNDERSCORE end CACHE string "What type of fortran underscore style - linux,end,none")
   set(FORTRAN_UNDERSCORE end CACHE string "What type of fortran underscore style - linux,end,none")
   set(FORTRAN_LIBRARY "" CACHE string "fortran library")
+  set(DEF_FORTRAN_UNDERSCORE "#define FORTRAN_UNDERSCORE_END")
 endif()
 
 # f77 on redstorm currently an exception - doesn't need it 
@@ -177,24 +241,6 @@ else()
   set(XML2_INCLUDE "")
   set(XML2_LIBRARY "")
 endif()
-
-#-----------------------------------------------------------------------------
-# Macro for adding sources in subdirectories
-#-----------------------------------------------------------------------------
-macro (add_sources)
-    file (RELATIVE_PATH _relPath "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
-    foreach (_src ${ARGN})
-        if (_relPath)
-            list (APPEND SRCS "${_relPath}/${_src}")
-        else()
-            list (APPEND SRCS "${_src}")
-        endif()
-    endforeach()
-    if (_relPath)
-        # propagate SRCS to parent directory
-        set (SRCS ${SRCS} PARENT_SCOPE)
-    endif()
-endmacro()
 
 #-----------------------------------------------------------------------------
 # Configure time cross-platform header file generation

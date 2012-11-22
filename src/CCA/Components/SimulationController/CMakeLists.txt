@@ -50,6 +50,7 @@ TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_SimulationController
   Packages_Uintah_CCA_Components_Regridder
   Packages_Uintah_CCA_Components_DataArchiver
   Packages_Uintah_Core_Thread
+  Packages_Uintah_Core_Tracker
   ${XML2_LIBRARY}
   ${M_LIBRARY}
 )

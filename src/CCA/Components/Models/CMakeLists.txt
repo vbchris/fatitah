@@ -44,6 +44,7 @@ SET(LIBS
   Packages_Uintah_Core_Labels
   Packages_Uintah_Core_Parallel
   Packages_Uintah_Core_ProblemSpec
+  Packages_Uintah_Core_IO
   ${XML2_LIBRARY}
   ${F_LIBRARY}
   ${M_LIBRARY}

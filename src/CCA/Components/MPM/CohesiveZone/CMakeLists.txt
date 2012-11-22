@@ -28,8 +28,10 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/CohesiveZone
 
-add_sources(
-  CohesiveZone.cc 
-  CZMaterial.cc
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/CohesiveZone.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/CZMaterial.cc
+  PARENT_SCOPE
 )
 

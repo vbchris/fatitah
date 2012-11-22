@@ -2,12 +2,13 @@ ADD_EXECUTABLE(pfs pfs.cc)
 ADD_EXECUTABLE(pfs2 pfs2.cc)
 
 SET(PFS_LIBS
-  Core_Exceptions
+  Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_Parallel
   Packages_Uintah_Core_ProblemSpec
   Packages_Uintah_Core_Util
+  Packages_Uintah_Core_GeometryPiece
   Packages_Uintah_CCA_Components_ProblemSpecification
 )
 

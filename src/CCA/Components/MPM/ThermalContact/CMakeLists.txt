@@ -28,10 +28,12 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/ThermalContact
 
-add_sources(
-  ThermalContact.cc 
-  STThermalContact.cc 
-  NullThermalContact.cc 
-  ThermalContactFactory.cc
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/ThermalContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/STThermalContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/NullThermalContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ThermalContactFactory.cc
+  PARENT_SCOPE
 )
 

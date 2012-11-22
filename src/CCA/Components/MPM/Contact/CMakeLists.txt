@@ -28,16 +28,18 @@
 
 # CMakeLists.txt for Packages/Uintah/CCA/Components/MPM/Contact
 
-add_sources(
-  SpecifiedBodyContact.cc 
-  SingleVelContact.cc 
-  FrictionContact.cc  
-  NodalSVFContact.cc 
-  ApproachContact.cc  
-  ContactFactory.cc   
-  CompositeContact.cc 
-  NullContact.cc      
-  ContactMaterialSpec.cc 
-  Contact.cc
+SET(Packages_Uintah_CCA_Components_MPM_SRCS
+  ${Packages_Uintah_CCA_Components_MPM_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/SpecifiedBodyContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/SingleVelContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/FrictionContact.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/NodalSVFContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/ApproachContact.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/ContactFactory.cc   
+  ${CMAKE_CURRENT_SOURCE_DIR}/CompositeContact.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/NullContact.cc      
+  ${CMAKE_CURRENT_SOURCE_DIR}/ContactMaterialSpec.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/Contact.cc
+  PARENT_SCOPE
 )
 

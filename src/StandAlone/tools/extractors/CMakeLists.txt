@@ -7,7 +7,7 @@ ADD_EXECUTABLE(extractV extractV.cc)
 ADD_EXECUTABLE(extractX extractS.cc)
 
 SET(EXTRACTOR_LIBS
-  Core_Exceptions
+  Packages_Uintah_Core_Exceptions
   Packages_Uintah_Core_Grid
   Packages_Uintah_Core_DataArchive
 )
