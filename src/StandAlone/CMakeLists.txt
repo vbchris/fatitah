@@ -28,6 +28,9 @@
 
 # CMakeLists.txt for Packages/Uintah/StandAlone
 
+message(STATUS "Binary dir = ${CMAKE_CURRENT_BINARY_DIR}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
 ADD_EXECUTABLE(sus sus.cc)
 ADD_EXECUTABLE(partvarRange partvarRange.cc)
 ADD_EXECUTABLE(selectpart selectpart.cc)

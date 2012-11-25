@@ -1,41 +1,147 @@
-# This is the root Vaango CMakeLists file.
-
-project(Vaango)
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-
-# for the moment, force the user to select the build type here.  Maybe 
-# we can enable all types again if dynamic compilation goes away.
-# This needs to be before PROJECT, or changing the value will append to CMAKE_CONFIGURATION_TYPES, instead
-# of replacing it. - BW
-set(CMAKE_BUILD_TYPE Release CACHE string "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel.")
-set(CMAKE_CONFIGURATION_TYPES ${BUILD_TYPE} CACHE string "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
-
-set(PACKAGE_SRC_PATH ${Vaango_SOURCE_DIR} CACHE IINTERNAL "Path to Vaango source tree.")
-set(PACKAGE_LIB_PATH ${Vaango_BINARY_DIR}/lib CACHE INTERNAL "Path to Vaango Libraries.")
-
-#-----------------------------------------------------------------------------
-# Test for some required system information.
-include (CMakeBackwardCompatibilityC)
+# This is the root Uintah CMakeLists file.
 
 #----------------------------------------------------------------------------
-# shared/static
+# Create the project and check cmake version
+#----------------------------------------------------------------------------
+cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+project(Uintah)
+
+set(MAJOR_VERSION "1")
+set(MINOR_VERSION "4")
+set(PATCH_VERSION "0")
+
+#----------------------------------------------------------------------------
+# Load macros
+#----------------------------------------------------------------------------
+include(${Uintah_SOURCE_DIR}/cmake/Macros/fortranDependency.cmake)
+
+#----------------------------------------------------------------------------------
+# Configure options
+#----------------------------------------------------------------------------------
+option(MPM               "Build MPM, MPMArches and MPMICE" ON)
+option(ICE               "Build ICE and MPMICE" ON)
+option(ARCHES            "Build Arches" OFF)
+option(WASATCH           "Build Wasatch" OFF)
+option(RADIATION         "Build Arches/Radiation" OFF)
+option(FORTRAN           "Build with fortran" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 mark_as_advanced(BUILD_SHARED_LIBS)
+if (DEFINED VISIT_DIR)
+  set(VISIT ON)
+endif ()
+
+#----------------------------------------------------------------------------
+# Default to release builds
+#----------------------------------------------------------------------------
+if( NOT CMAKE_BUILD_TYPE )
+  set( CMAKE_BUILD_TYPE "Release" CACHE STRING
+    "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+    FORCE )
+endif( NOT CMAKE_BUILD_TYPE )
+
+#----------------------------------------------------------------------------
+# Cache the source and  library paths
+#----------------------------------------------------------------------------
+set(BUILD_FROM_TOP_LEVEL 0)
+set(PACKAGE_SRC_PATH ${Uintah_SOURCE_DIR} CACHE INTERNAL "Path to Uintah source tree.")
+set(PACKAGE_LIB_PATH ${Uintah_BINARY_DIR}/lib CACHE INTERNAL "Path to Uintah Libraries.")
 
 #----------------------------------------------------------------------------
 # Output directories.
-set (LIBRARY_OUTPUT_PATH ${Vaango_BINARY_DIR}/lib CACHE INTERNAL "Single output directory for building all libraries.")
-set (EXECUTABLE_OUTPUT_PATH ${Vaango_BINARY_DIR} CACHE INTERNAL "Single output directory for building all executables.")
+#----------------------------------------------------------------------------
+set (LIBRARY_OUTPUT_PATH ${Uintah_BINARY_DIR}/lib CACHE INTERNAL "Single output directory for building all libraries.")
+set (EXECUTABLE_OUTPUT_PATH ${Uintah_BINARY_DIR} CACHE INTERNAL "Single output directory for building all executables.")
+mark_as_advanced(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH)
 
-# compiler flags
+#-----------------------------------------------------------------------------
+# Test for some required system information.
+#-----------------------------------------------------------------------------
+include (CMakeBackwardCompatibilityC)
+
+#----------------------------------------------------------------------------
+# Optional variable intialization  
+#----------------------------------------------------------------------------
+set(HAVE_HDF5 "no")
+set(HAVE_BOOST "no")
+set(HAVE_TABPROPS "no")
+set(HAVE_SPATIALOPS "no")
+set(HAVE_EXPRLIB "no")
+
+#----------------------------------------------------------------------------
+# Determine host type, processor count and OS version  
+#----------------------------------------------------------------------------
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")  # Apple OSX
+  set(NUM_CPUS 2)
+  set(IS_OSX "yes")
+  set(DEF_OSX "#define IS_OSX 1")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Aix")
+  set(NUM_CPUS 2)
+  set(IS_AIX "yes")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  set(NUM_CPUS 2)
+  set(IS_LINUX "yes")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  if (MINGW)
+    set(NUM_CPUS 2)
+    set(IS_WIN "yes")
+  else ()
+    message(FATAL_ERROR "Currently Windows only configures from mingw.  See install instructions")
+  endif (MINGW)
+else ()
+  message(STATUS "Warning !!!!!! This system is untested - You are on your own !!!!!")
+  set(NUM_CPUS 1)
+endif ()
+
+#-----------------------------------------------------------------------------
+# Check type sizes for config_defs.h and Endian.h
+#-----------------------------------------------------------------------------
+check_type_size("void*" SIZEOF_VOIDP)
+check_type_size("long long" SIZEOF_LONG_LONG)
+message(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
+message(STATUS "SIZEOF_LONG_LONG ${SIZEOF_LONG_LONG}")
+
+#----------------------------------------------------------------------------
+# Check endian-ness and create Core/Util/Endian.h file and Core/Malloc/mem_init.h
+#----------------------------------------------------------------------------
+# 32-64 bit ?
+if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(NBITS 64)
+elseif (CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set(NBITS 32)
+else ()
+  message(FATAL_ERROR "This machine has some strange sizeof(void*): ${CMAKE_SIZEOF_VOID_P}.
+  Usually this means that your LD_LIBRARY_PATH is set incorrectly for the
+  compiler you are using.  To verify that this is the problem you will need
+  to copy the C++  program from the end of the config.log file and run the
+  compile command which is just before it in config.log.  Run the executable
+  and see what error message you get. You can also just fix your
+  LD_LIBRARY_PATH if you know what is wrong with it.
+  Exiting due to size of void* problem! Read above warnings!")
+endif()
+if (SIZEOF_LONG_LONG EQUAL 8)
+  set(LONG_LONG_SWAP "SWAP_8")
+elseif (SIZEOF_LONG_LONG EQUAL 4)
+  set(LONG_LONG_SWAP "SWAP_4")
+else ()
+  message(FATAL_ERROR "This machine has some strange sizeof(long long): ${SIZEOF_LONG_LONG}.
+  Usually this means that your LD_LIBRARY_PATH is set incorrectly for the
+  compiler you are using.  To verify that this is the problem you will need
+  to copy the C++  program from the end of the config.log file and run the
+  compile command which is just before it in config.log.  Run the executable
+  and see what error message you get. You can also just fix your
+  LD_LIBRARY_PATH if you know what is wrong with it.
+  Exiting due to size of long long problem! Read above warnings!")
+endif ()
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Core/Util/testEndian.h.in ${CMAKE_CURRENT_BINARY_DIR}/Core/Util/Endian.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Core/Malloc/testmem_init.h.in ${CMAKE_CURRENT_BINARY_DIR}/Core/Malloc/mem_init.h)
+
+#----------------------------------------------------------------------------
+# C/C++ compiler flags
+#----------------------------------------------------------------------------
 if(CXX_FLAGS)
+  message(STATUS "Default compiler flags are: $CMAKE_CXX_FLAGS$")
   set(CMAKE_CXX_FLAGS ${CXX_FLAGS} CACHE string "Default compiler flags" FORCE)
 endif(CXX_FLAGS)
-
-mark_as_advanced(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH)
-#mark_as_advanced(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH CXX_TEST_PATH)
-
-set(BUILD_FROM_TOP_LEVEL 0)
 
 if(WIN32)
   if(NOT BUILD_SHARED_LIBS)
@@ -62,16 +168,8 @@ if(WIN32)
 endif(WIN32)
 
 #----------------------------------------------------------------------------------
-# Configure options
-#----------------------------------------------------------------------------------
-option(MPM          "Build MPM, MPMArches and MPMICE" ON)
-option(ICE          "Build ICE and MPMICE" ON)
-option(ARCHES       "Build Arches" OFF)
-option(WASATCH      "Build Wasatch" OFF)
-option(RADIATION    "Build Arches/Radiation" OFF)
-option(FORTRAN      "Build with fortran" OFF)
-
 # Turn off Arches, Wasatch, ICE, MPM, or Radiation (for sci_defs/uintah_defs.h)
+#----------------------------------------------------------------------------------
 set(DEF_MPM "")
 set(DEF_ICE "")
 set(DEF_ARCHES "")
@@ -195,27 +293,11 @@ endif(NOT F_LIBRARY AND NOT HAVE_F77)
 
 find_program(PERL perl)
 set(FSPEC ${CMAKE_CURRENT_BINARY_DIR}/genfspec.pl CACHE FILE "Path to fspec")
-configure_file(${Vaango_SOURCE_DIR}/tools/fspec.pl.in ${FSPEC})
+configure_file(${Uintah_SOURCE_DIR}/tools/fspec.pl.in ${FSPEC})
 
-# Adds fortran file to list of srcs and creates the .h file for it
-macro(FORTRAN_DEPENDENCY fortran_file lib)
-
-  # should pass in a fortran_file and package it belongs to.  I.e.,
-  # FORTRAN_DEPENDENCY(fortran/bcscalar_fort.h CCA_Components_Arches)
-  string(REPLACE .F _fort.h header ${CMAKE_CURRENT_BINARY_DIR}/${fortran_file})
-  string(REPLACE .F .fspec fspec_file ${fortran_file})
-  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/fortran)
-  set(${lib}_FORTRAN_SRCS ${${lib}_FORTRAN_SRCS} ${fortran_file})
-  # if everybody has cmake 2.4.5, we can do IS_NEWER_THAN, and not create these files on every cmake
-  if(${CMAKE_CURRENT_SOURCE_DIR}/${fspec_file} IS_NEWER_THAN ${header})
-    if(NOT EXISTS ${header})
-      execute_process(COMMAND perl ${FSPEC} ${CMAKE_CURRENT_SOURCE_DIR}/${fspec_file} ${header})
-    endif(NOT EXISTS ${header})
-  endif(${CMAKE_CURRENT_SOURCE_DIR}/${fspec_file} IS_NEWER_THAN ${header})
-
-endmacro(FORTRAN_DEPENDENCY)
-
+#----------------------------------------------------------------------------------
 # Find the MPI package to use
+#----------------------------------------------------------------------------------
 find_package(MPI REQUIRED)
 if (MPI_FOUND)
   include_directories(${MPI_INCLUDE_PATH})
@@ -227,7 +309,9 @@ else()
   set(MPI_LIBRARY "")
 endif()
 
+#----------------------------------------------------------------------------------
 # Find the LibXML2 package to use
+#----------------------------------------------------------------------------------
 find_package(LibXml2 REQUIRED)
 if (LIBXML2_FOUND)
   include_directories(${LIBXML2_INCLUDE_DIR})
@@ -243,14 +327,6 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure time cross-platform header file generation
 #-----------------------------------------------------------------------------
-
-# 32-64 bit ?
-if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-  set(NBITS 64)
-else ()
-  set(NBITS 32)
-endif()
-
 # SCI_MALLOC on?
 if (SCI_MALLOC_ON)
   set(DEF_MALLOC "")
@@ -273,7 +349,9 @@ endif()
 set(TEMPLATE_TAG "")
 set(TEMPLATE_BOX "<>")
 
+#-----------------------------------------------------------------------------
 # Threads library  (for populating sci_defs/threads_def.h)
+#-----------------------------------------------------------------------------
 set(CMAKE_THREAD_PREFER_PTHREAD true)
 find_package(Threads REQUIRED)
 if (${Threads_FOUND})
@@ -296,10 +374,14 @@ else()
 endif()
 set(THREAD_IMPL "Thread_${THREADS_TYPE}.cc")
 
+#-----------------------------------------------------------------------------
 # Check availability of semaphore.h
+#-----------------------------------------------------------------------------
 check_include_file(semaphore.h HAVE_SEMAPHORE_H)
 
+#-----------------------------------------------------------------------------
 # Check atomic builtins for threads support in gcc
+#-----------------------------------------------------------------------------
 include(CheckCXXSourceCompiles)
 
 CHECK_CXX_SOURCE_COMPILES("
@@ -340,7 +422,9 @@ else()
   set(TIME_IMPL "Time_unix.cc")
 endif()
 
+#-----------------------------------------------------------------------------
 # Find dl library (for dlopen())
+#-----------------------------------------------------------------------------
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 find_package(DL)
 if (${DL_FOUND})
@@ -351,7 +435,18 @@ else()
   message(STATUS "DL library not found")
 endif()
 
+#-----------------------------------------------------------------------------
+# Find VisIt and build plugin
+#-----------------------------------------------------------------------------
+if (VISIT)
+  message(STATUS "Checking for VisIt in ${VISIT_DIR}")
+  configure_file(${Uintah_SOURCE_DIR}/VisIt/udaReaderMTMD/avtudaReaderMTMDFileFormat.C.in ${Uintah_BINARY_DIR}/VisIt/udaReaderMTMD/avtudaReaderMTMDFileFormat.C)
+  add_subdirectory(VisIt)
+endif()
+
+#-----------------------------------------------------------------------------
 # Check included header files and create configuration files (for populating sci_defs/config_defs.h)
+#-----------------------------------------------------------------------------
 include(CheckIncludeFiles)
 #check_include_files("ext/algorithm" HAVE_EXT_ALGORITHM)
 CHECK_CXX_SOURCE_COMPILES("
@@ -382,21 +477,19 @@ if (${HAVE_STDLIB_H})
 endif()
 message(STATUS "STDC_HEADERS ${STDC_HEADERS}")
 
-# Check type sizes for config_defs.h
-check_type_size("void*" SIZEOF_VOIDP)
-check_type_size("long long" SIZEOF_LONG_LONG)
-message(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
-message(STATUS "SIZEOF_LONG_LONG ${SIZEOF_LONG_LONG}")
-
+#-----------------------------------------------------------------------------
 # Package info for config_defs.h
+#-----------------------------------------------------------------------------
 set(PACKAGE_BUGREPORT "")
-set(PACKAGE_NAME "Vaango")
-set(PACKAGE_STRING "Vaango 1.0")
-set(PACKAGE_TARNAME "vaango")
+set(PACKAGE_NAME "Uintah")
+set(PACKAGE_STRING "Uintah 1.0")
+set(PACKAGE_TARNAME "uintah")
 set(PACKAGE_URL "")
 set(PACKAGE_VERSION "1.0")
 
+#-----------------------------------------------------------------------------
 # Check for location of hash_map for hashmap_defs.h
+#-----------------------------------------------------------------------------
 message(STATUS "Looking for hash_map")
 set(HAVE_HASHMAP "None")
 if (NOT OSX)
@@ -461,7 +554,9 @@ else()
   set(DEF_HASHMAP "")
 endif()
 
-# Check for required standard headers
+#-----------------------------------------------------------------------
+# Check for required standard C/C++ headers
+#-----------------------------------------------------------------------
 check_include_files(unistd.h HAVE_UNISTD_H)
 check_include_files(dirent.h HAVE_DIRENT_H)
 check_include_files(sys/time.h HAVE_SYS_TIME_H)
@@ -479,7 +574,9 @@ check_include_files(sys/utsname.h HAVE_SYS_UTSNAME_H)
 check_include_files(rpc/types.h HAVE_RPC_TYPES_H)
 check_include_files(netinet/in.h HAVE_NETINET_IN_H)
 
-# Check for standard template library headers
+#-----------------------------------------------------------------------
+# Check for C++ standard template library headers
+#-----------------------------------------------------------------------
 CHECK_CXX_SOURCE_COMPILES("
 #include <algorithm>
 #include <vector>
@@ -495,7 +592,9 @@ if (HAVE_STL_HEADERS)
   message(STATUS "Standard template library headers found.")
 endif()
 
+#-----------------------------------------------------------------------
 # Create the cross-platform header files
+#-----------------------------------------------------------------------
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs)
@@ -551,8 +650,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/sci_defs/z_testdefs.h.in ${CM
 
 #-----------------------------------------------------------------------------
 # Packages to enable (must enable packages when building core for now)
-set(LOAD_PACKAGE "Vaango" CACHE string "Building Vaango package by default.")
-set(HANDLED_PACKAGE_Vaango "YES")
+set(LOAD_PACKAGE "Uintah" CACHE string "Building Uintah package by default.")
+set(HANDLED_PACKAGE_Uintah "YES")
 
 include_directories(
   ${PETSC_INCLUDES}
@@ -561,7 +660,7 @@ include_directories(
 )
 
 include_directories(
-  ${Vaango_SOURCE_DIR}
+  ${Uintah_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 

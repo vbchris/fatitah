@@ -83,8 +83,6 @@ endif (CUDA)
 
 ADD_LIBRARY(Packages_Uintah_CCA_Components_Examples ${Packages_Uintah_CCA_Components_Examples_SRCS})
 
-message(STATUS "Examples libs are ${Examples_LIBS}")
-
 TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Examples
   ${Examples_LIBS}
   ${XML2_LIBRARY}
