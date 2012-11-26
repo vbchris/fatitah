@@ -65,12 +65,12 @@ SET(SUS_LIBS
 IF(ICE)
   SET(SUS_LIBS ${SUS_LIBS} Packages_Uintah_CCA_Components_Models)
 ENDIF(ICE)
-IF(HYPRE_LIBRARY)
+IF(HYPRE)
   SET(SUS_LIBS ${SUS_LIBS} ${HYPRE_LIBRARY})
-ENDIF(HYPRE_LIBRARY)
-IF(PETSC_LIBRARY)
+ENDIF()
+IF(PETSC)
   SET(SUS_LIBS ${SUS_LIBS} ${PETSC_LIBRARY})
-ENDIF(PETSC_LIBRARY)
+ENDIF()
 
 TARGET_LINK_LIBRARIES(sus ${SUS_LIBS})
 
@@ -89,14 +89,18 @@ TARGET_LINK_LIBRARIES(partvarRange
   Packages_Uintah_Core_DataArchive
 )
 
-TARGET_LINK_LIBRARIES(restart_merger
+set(RESTART_LIBS
   Packages_Uintah_Core_DataArchive
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_OS
+#  Packages_Uintah_Core_Grid
+#  Packages_Uintah_Core_OS
   Packages_Uintah_CCA_Components_Parent 
-  Packages_Uintah_Core_ProblemSpec
+#  Packages_Uintah_Core_ProblemSpec
   Packages_Uintah_CCA_Components_DataArchiver
 )
+IF(HYPRE)
+  SET(RESTART_LIBS ${RESTART_LIBS} ${HYPRE_LIBRARY})
+ENDIF()
+TARGET_LINK_LIBRARIES(restart_merger ${RESTART_LIBS})
   
 TARGET_LINK_LIBRARIES(selectpart
   Packages_Uintah_Core_DataArchive

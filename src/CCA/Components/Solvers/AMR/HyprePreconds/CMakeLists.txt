@@ -26,46 +26,16 @@
 #  DEALINGS IN THE SOFTWARE.
 #
 
-# CMakeLists.txt for Packages/Uintah/CCA/Components/Solvers
+# CMakeLists.txt for Packages/Uintah/CCA/Components/Solvers/AMR/HyprePreconds
 
-SET(Packages_Uintah_CCA_Components_Solvers_SRCS
-  CGSolver.cc
-  DirectSolve.cc
-  SolverFactory.cc
+SET(CCA_Components_Solvers_AMR_SRCS
+  ${CCA_Components_Solvers_AMR_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/HyprePrecondBase.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/HyprePrecondSMG.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/HyprePrecondPFMG.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/HyprePrecondSparseMSG.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/HyprePrecondJacobi.cc 
+  ${CMAKE_CURRENT_SOURCE_DIR}/HyprePrecondDiagonal.cc
+  PARENT_SCOPE
 )
 
-IF (HYPRE)
-  SET(Packages_Uintah_CCA_Components_Solvers_SRCS
-    ${Packages_Uintah_CCA_Components_Solvers_SRCS}
-    HypreSolver.cc
-  )
-endif ()
-
-ADD_LIBRARY(Packages_Uintah_CCA_Components_Solvers ${Packages_Uintah_CCA_Components_Solvers_SRCS})
-TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Solvers
-  Packages_Uintah_Core_Thread
-  Packages_Uintah_CCA_Ports
-  Packages_Uintah_Core_Exceptions
-  Packages_Uintah_Core_Grid
-  Packages_Uintah_Core_Util
-  Packages_Uintah_Core_Disclosure
-  Packages_Uintah_Core_Parallel
-  Packages_Uintah_Core_ProblemSpec
-  ${XML2_LIBRARY}
-  ${LAPACK_LIBRARY}
-  ${CBLAS_LIBRARY}
-)
-
-IF (HYPRE)
-  TARGET_LINK_LIBRARIES(Packages_Uintah_CCA_Components_Solvers 
-    CCA_Components_Solvers_AMR 
-    ${HYPRE_LIBRARY}
-  )
-
-  add_subdirectory(AMR)
-ENDIF (HYPRE)
-
-
-IF(BUILD_SHARED_LIBS)
-  ADD_DEFINITIONS(-DBUILD_Packages_Uintah_CCA_Components_Solvers)
-ENDIF(BUILD_SHARED_LIBS)

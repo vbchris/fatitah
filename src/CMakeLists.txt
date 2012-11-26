@@ -24,6 +24,8 @@ option(ARCHES            "Build Arches" OFF)
 option(WASATCH           "Build Wasatch" OFF)
 option(RADIATION         "Build Arches/Radiation" OFF)
 option(FORTRAN           "Build with fortran" OFF)
+option(PETSC             "Build with PETSc" OFF)
+option(HYPRE             "Build with HYPRE" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 mark_as_advanced(BUILD_SHARED_LIBS)
 if (DEFINED VISIT_DIR)
@@ -436,6 +438,25 @@ else()
 endif()
 
 #-----------------------------------------------------------------------------
+# Find PETSc library (for implicit linear solvers)
+#-----------------------------------------------------------------------------
+if (PETSC)
+  find_package(PETSc REQUIRED)
+  set(HAVE_PETSC "yes")
+  set(DEF_PETSC "#define HAVE_PETSC 1")
+  add_definitions(${PETSC_DEFINITIONS})
+endif()
+
+#-----------------------------------------------------------------------------
+# Find HYPRE library (for implicit linear solvers)
+#-----------------------------------------------------------------------------
+if (HYPRE)
+  find_package(HYPRE REQUIRED)
+  set(HAVE_HYPRE "yes")
+  set(DEF_HYPRE "#define HAVE_HYPRE 1")
+endif()
+
+#-----------------------------------------------------------------------------
 # Find VisIt and build plugin
 #-----------------------------------------------------------------------------
 if (VISIT)
@@ -598,7 +619,7 @@ endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/sci_defs/config_testdefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs/config_defs.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/sci_defs/config_cmakedefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs/config_defs.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/sci_defs/audio_testdefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs/audio_defs.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/sci_defs/babel_testdefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs/babel_defs.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/sci_defs/bits_testdefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/sci_defs/bits_defs.h)

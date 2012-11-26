@@ -71,12 +71,12 @@ SET(LIBS
   ${MPI_LIBRARY}
 )
 
-IF (PETSC_LIBRARY)
+IF (PETSC)
   SET(Packages_Uintah_CCA_Components_MPM_SRCS ${Packages_Uintah_CCA_Components_MPM_SRCS} PetscSolver.cc)
   SET(LIBS ${LIBS} ${PETSC_LIBRARIES})
-ELSE (PETSC_LIBRARY)
+ELSE ()
   SET(Packages_Uintah_CCA_Components_MPM_SRCS ${Packages_Uintah_CCA_Components_MPM_SRCS} FakePetscSolver.cc)
-ENDIF (PETSC_LIBRARY)
+ENDIF ()
 
 
 ADD_LIBRARY(Packages_Uintah_CCA_Components_MPM ${Packages_Uintah_CCA_Components_MPM_SRCS})
