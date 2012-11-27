@@ -47,6 +47,8 @@ endif( NOT CMAKE_BUILD_TYPE )
 set(BUILD_FROM_TOP_LEVEL 0)
 set(PACKAGE_SRC_PATH ${Uintah_SOURCE_DIR} CACHE INTERNAL "Path to Uintah source tree.")
 set(PACKAGE_LIB_PATH ${Uintah_BINARY_DIR}/lib CACHE INTERNAL "Path to Uintah Libraries.")
+set(scirun_src_dir ${Uintah_SOURCE_DIR})
+set(scirun_obj_dir ${Uintah_BINARY_DIR})
 
 #----------------------------------------------------------------------------
 # Output directories.
