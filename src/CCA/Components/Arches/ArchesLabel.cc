@@ -326,12 +326,6 @@ ArchesLabel::ArchesLabel()
   d_continuityResidualLabel    =  VarLabel::create("continuityResidual",    CC_double);
 
   d_ScalarClippedLabel       =  VarLabel::create("scalarClipped",       max_variable);
-  d_ReactScalarClippedLabel  =  VarLabel::create("reactScalarClipped",  max_variable);
-
-  d_uVelNormLabel  =  VarLabel::create("uVelNorm",  sum_variable);
-  d_vVelNormLabel  =  VarLabel::create("vVelNorm",  sum_variable);
-  d_wVelNormLabel  =  VarLabel::create("wVelNorm",  sum_variable);
-  d_rhoNormLabel   =  VarLabel::create("rhoNorm",   sum_variable);
 
   d_negativeDensityGuess_label           =  VarLabel::create("negativeDensityGuess",           sum_variable);
   d_negativeDensityGuessPred_label       =  VarLabel::create("negativeDensityGuessPred",       sum_variable);
@@ -345,8 +339,6 @@ ArchesLabel::ArchesLabel()
 // kinetic energy
   d_kineticEnergyLabel             =  VarLabel::create("kineticEnergy",             CC_double);
   d_totalKineticEnergyLabel        =  VarLabel::create("totalKineticEnergy",        sum_variable);
-  d_totalKineticEnergyPredLabel    =  VarLabel::create("totalKineticEnergyPred",    sum_variable);
-  d_totalKineticEnergyIntermLabel  =  VarLabel::create("totalKineticEnergyInterm",  sum_variable);
 
 // scalar mms and gradP Ln error
 // ** warning...the L2 error here is not complete
@@ -659,11 +651,6 @@ ArchesLabel::~ArchesLabel()
   VarLabel::destroy(d_continuityResidualLabel);
 
   VarLabel::destroy(d_ScalarClippedLabel);
-  VarLabel::destroy(d_ReactScalarClippedLabel);
-  VarLabel::destroy(d_uVelNormLabel);
-  VarLabel::destroy(d_vVelNormLabel);
-  VarLabel::destroy(d_wVelNormLabel);
-  VarLabel::destroy(d_rhoNormLabel);
 
 // label for odt model
   //VarLabel::destroy(d_odtDataLabel);
@@ -679,8 +666,6 @@ ArchesLabel::~ArchesLabel()
 // kinetic energy
   VarLabel::destroy(d_kineticEnergyLabel); 
   VarLabel::destroy(d_totalKineticEnergyLabel); 
-  VarLabel::destroy(d_totalKineticEnergyPredLabel); 
-  VarLabel::destroy(d_totalKineticEnergyIntermLabel); 
 // mass balance labels for RK
   VarLabel::destroy(d_totalflowINPredLabel);
   VarLabel::destroy(d_totalflowOUTPredLabel);

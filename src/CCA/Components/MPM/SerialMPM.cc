@@ -231,7 +231,7 @@ void SerialMPM::problemSetup(const ProblemSpecP& prob_spec,
   if(flags->d_8or27==8){
     NGP=1;
     NGN=1;
-  } else if(flags->d_8or27==27 || flags->d_8or27==64){
+  } else if(flags->d_8or27==27 || flags->d_8or27==64 || flags->d_8or27==18){
     NGP=2;
     NGN=2;
   }
@@ -1632,7 +1632,7 @@ void SerialMPM::scheduleComputeParticleScaleFactor(SchedulerP& sched,
                 &SerialMPM::computeParticleScaleFactor);
 
   t->requires(Task::OldDW, lb->pSizeLabel,  Ghost::None);
-  t->computes(lb->pScaleFactorLabel);
+  t->computes(lb->pScaleFactorLabel_preReloc);
 
   sched->addTask(t, patches, matls);
 }
@@ -3130,6 +3130,11 @@ void SerialMPM::setPrescribedMotion(const ProcessorGroup*,
 
       // Calculate the rate of the deformation gradient without the rotation:
       Fdot = (F_high - F_low)/(t2-t1);
+      Matrix3 Finv = Ft.Inverse();
+      Matrix3 L = Fdot*Finv;
+
+      std::cout << "SerialMPM: t = " << time << " t2 = " << t2 << " t1 = " << t1 << " F_low = " << F_low
+                << " F_high = " << F_high << " F_t = " <<  Ft << " Fdot = " << Fdot << " L = " << L << endl;
 
       // Now we need to construct the rotation matrix and its time rate:
       // We are only interested in the rotation information at the next specified time since the rotations specified should be relative to the previously specified time.  For example if I specify Theta=90 at time=1.0, and Theta = 91 and time=2.0 the total rotation at time=2.0 will be 181 degrees.
@@ -3172,6 +3177,8 @@ void SerialMPM::setPrescribedMotion(const ProcessorGroup*,
             thetadot = PrescribedTheta*(degtorad)/(t3-t2);
             new_dw->put(delt_vartype(tst), d_sharedState->get_delt_label(), getLevel(patches));
           }
+         std::cout << "SerialMPM: (exact): t = " << time << " t2 = " << t2 << " t1 = " << t1 << " F_low = " << F_low
+                   << " F_high = " << F_high << " F_t = " <<  Ft << " Fdot = " << Fdot << endl;
        }
 
       //construct Rdot:
@@ -4659,15 +4666,17 @@ void SerialMPM::computeParticleScaleFactor(const ProcessorGroup*,
 
       constParticleVariable<Matrix3> psize;
       ParticleVariable<Matrix3> pScaleFactor;
-      old_dw->get(           psize,        lb->pSizeLabel,                 pset);
-      new_dw->allocateAndPut(pScaleFactor, lb->pScaleFactorLabel,  pset);
+      old_dw->get(psize,                   lb->pSizeLabel,                pset);
+      new_dw->allocateAndPut(pScaleFactor, lb->pScaleFactorLabel_preReloc,pset);
 
       if(dataArchiver->isOutputTimestep()){
         Vector dx = patch->dCell();
         for(ParticleSubset::iterator iter  = pset->begin();
                                      iter != pset->end(); iter++){
           particleIndex idx = *iter;
-          pScaleFactor[idx] = (psize[idx]*Matrix3(dx[0],0,0,0,dx[1],0,0,0,dx[2]));
+          pScaleFactor[idx] = (psize[idx]*Matrix3(dx[0],0,0,
+                                                  0,dx[1],0,
+                                                  0,0,dx[2]));
 
         } // for particles
       } // isOutputTimestep

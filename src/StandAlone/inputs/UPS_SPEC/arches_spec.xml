@@ -462,6 +462,7 @@
 
         <initial_dt                     spec="REQUIRED DOUBLE 'positive'" />
         <variable_dt                    spec="REQUIRED BOOLEAN" />
+        <print_total_ke 								spec="OPTIONAL NO_DATA" />  <!-- prints the total kinetic energy to STDIO --> 
         <scalarUnderflowCheck           spec="OPTIONAL BOOLEAN" /> 
         <extraProjection                spec="OPTIONAL BOOLEAN" /> 
         <newEnthalpySolver              spec="OPTIONAL NO_DATA" /> <!-- DEVELOPER SWITCH --> 
@@ -498,7 +499,7 @@
 
         <maxDensityLag                  spec="OPTIONAL DOUBLE" />
 
-        <MixtureFractionSolver          spec="REQUIRED NO_DATA" >
+        <MixtureFractionSolver          spec="OPTIONAL NO_DATA" >
           <initial_value                spec="OPTIONAL DOUBLE" />
           <convection_scheme            spec="REQUIRED STRING 'central-upwind, flux_limited'"/>
           <limiter_type                 spec="OPTIONAL STRING 'minmod, superbee, vanLeer, upwind, none'"/>

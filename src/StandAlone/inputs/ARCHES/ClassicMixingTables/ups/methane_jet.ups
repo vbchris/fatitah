@@ -243,7 +243,7 @@
           <doDiff>true</doDiff>
           <doConv>true</doConv>
           <conv_scheme>upwind</conv_scheme>
-          <addSources>false</addSources>
+          <addSources>true</addSources>
           <determines_properties/>
           <initialization type="tabulated">
             <depend_varname>adiabaticenthalpy</depend_varname>
@@ -315,22 +315,6 @@
           <convection_scheme>flux_limited</convection_scheme>
           <limiter_type>upwind</limiter_type>
         </MixtureFractionSolver>
-
-        <EnthalpySolver>
-          <convection_scheme>central-upwind</convection_scheme>
-          <radiationCalcFreq>5</radiationCalcFreq>
-          <radCalcForAllRKSteps>false</radCalcForAllRKSteps>
-          <DORadiationModel>
-            <opl>3.0</opl>
-            <const_wall_temperature/>
-            <LinearSolver type="hypre">
-              <res_tol>1.0e-10</res_tol>
-              <ksptype>gmres</ksptype>
-              <pctype>jacobi</pctype>
-              <max_iter>75</max_iter>
-            </LinearSolver>
-          </DORadiationModel>
-        </EnthalpySolver>
 
       </ExplicitSolver>
     </ARCHES>
