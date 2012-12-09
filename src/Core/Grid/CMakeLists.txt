@@ -45,6 +45,7 @@ SET(Packages_Uintah_Core_Grid_SRCS
   Grid.cc
   Level.cc
   LinearInterpolator.cc
+  AxiLinearInterpolator.cc
   Material.cc
   Patch.cc
   PatchRangeTree.cc

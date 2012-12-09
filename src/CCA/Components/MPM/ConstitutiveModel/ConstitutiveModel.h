@@ -269,9 +269,11 @@ namespace Uintah {
               double d_SXoodx = d_S[k][j]*oodx[j];
               for (int i = 0; i<3; i++) {
                 velGrad(i,j) += gvel[i] * d_SXoodx;
-                //std::cerr << "Grid vel = " << gvel << " dS = " << d_S[k][j] 
-                //          << " oodx = " << oodx[j] << endl;
-                //std::cerr << " VelGrad(" << i << "," << j << ") = " << velGrad(i,j) << endl;
+                //if (isnan(velGrad(i,j)) || fabs(velGrad(i,j)) > 1.0e30) {
+                //  std::cerr << "Grid vel = " << gvel << " k = " << k << " node = " << ni[k] 
+                //            << " dS = " << d_S[k][j] << " oodx = " << oodx[j] 
+                //            << " velGrad(" << i << "," << j << ") = " << velGrad(i,j) << endl;
+                //}
               }
             }
           }
@@ -294,7 +296,7 @@ namespace Uintah {
               velGrad(i,j)+=gvel[i] * d_S[k][j] * oodx[j];
             }
           }
-          velGrad(2,2) += gvel.x()*S[k]/px.x();
+          velGrad(2,2) += gvel.x()*d_S[k].z();
         }
      };
 
