@@ -58,6 +58,15 @@ using std::vector;
       const VarLabel* pXXLabel;
       const VarLabel* pPartitionUnityLabel;
 
+      // Two more labels for velGrad and defGrad (with least disruption
+      // of existing code in mind).  These labels are used in the MPM
+      // task that compute the velocity gradient and the defromation
+      // gradient.
+      const VarLabel* pVelGrad;
+      const VarLabel* pVelGrad_preReloc;
+      const VarLabel* pDefGrad;
+      const VarLabel* pDefGrad_preReloc;
+
       //PermanentParticleState
       const VarLabel* pDeformationMeasureLabel;
       const VarLabel* pDeformationMeasureLabel_preReloc;

@@ -262,6 +262,25 @@ protected:
                                    DataWarehouse* old_dw,
                                    DataWarehouse* new_dw);
 
+  /*! Compute the velocity gradient ad deformation gradient */
+  void computeDeformationGradient(const ProcessorGroup*,
+                                  const PatchSubset* patches,
+                                  const MaterialSubset* matls,
+                                  DataWarehouse* old_dw,
+                                  DataWarehouse* new_dw);
+
+  void computeDefGradExplicit(const ProcessorGroup*,
+                              const PatchSubset* patches,
+                              const MaterialSubset* matls,
+                              DataWarehouse* old_dw,
+                              DataWarehouse* new_dw);
+
+  void computeDefGradImplicit(const ProcessorGroup*,
+                              const PatchSubset* patches,
+                              const MaterialSubset* matls,
+                              DataWarehouse* old_dw,
+                              DataWarehouse* new_dw);
+
   /*! Update the erosion parameter if mass is to be removed */
   void updateErosionParameter(const ProcessorGroup*,
                               const PatchSubset* patches,
@@ -415,6 +434,8 @@ protected:
   virtual void scheduleComputeStressTensor(SchedulerP&, const PatchSet*,
                                            const MaterialSet*);
   
+  void scheduleComputeDeformationGradient(SchedulerP&, const PatchSet*,
+                                          const MaterialSet*);
 
   void scheduleUpdateErosionParameter(SchedulerP& sched,
                                       const PatchSet* patches,

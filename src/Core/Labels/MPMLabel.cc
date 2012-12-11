@@ -93,6 +93,13 @@ MPMLabel::MPMLabel()
   pPartitionUnityLabel   = VarLabel::create( "p.partitionUnity",
 			ParticleVariable<double>::getTypeDescription() );
   
+  // Extra labels for the velocity gradient and the deformation gradient
+  // (named such that there is minimal disruption of existing code)
+  pVelGradLabel = VarLabel::create("p.velocityGradient",
+			ParticleVariable<Matrix3>::getTypeDescription());
+  pDefGradLabel = VarLabel::create("p.deformationGradient",
+			ParticleVariable<Matrix3>::getTypeDescription());
+
   //PermanentParticleState
   pDeformationMeasureLabel = VarLabel::create("p.deformationMeasure",
 			ParticleVariable<Matrix3>::getTypeDescription());
@@ -164,6 +171,13 @@ MPMLabel::MPMLabel()
 
   pFiberDirLabel_preReloc  = VarLabel::create( "p.fiberdir+",
                         ParticleVariable<Vector>::getTypeDescription() );
+
+  // Extra labels for the velocity gradient and the deformation gradient
+  // (named such that there is minimal disruption of existing code)
+  pVelGradLabel_preReloc = VarLabel::create("p.velocityGradient+",
+			ParticleVariable<Matrix3>::getTypeDescription());
+  pDefGradLabel_preReloc = VarLabel::create("p.deformationGradient+",
+			ParticleVariable<Matrix3>::getTypeDescription());
 
   // Particle Variables 
   pDeformationMeasureLabel_preReloc = VarLabel::create("p.deformationMeasure+",
