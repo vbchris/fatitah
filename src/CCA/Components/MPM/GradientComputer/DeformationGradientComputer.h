@@ -49,48 +49,72 @@ namespace Uintah {
     // Make a clone of the gradient computer
     DeformationGradientComputer* clone();
 
-    void outputProblemSpec(ProblemSpecP& ps, bool output_cm_tag = true);
-    
-    void computeDeformationGradientFromDisplacement(
-                                           constNCVariable<Vector> gDisp,
-                                           ParticleSubset* pset,
-                                           constParticleVariable<Point> px,
-                                           constParticleVariable<Matrix3> psize,
-                                           ParticleVariable<Matrix3> &Fnew,
-                                           constParticleVariable<Matrix3> &Fold,
-                                           Vector dx,
-                                           ParticleInterpolator* interp);
+    // Computes and requires     
+    void addComputesAndRequires(Task* task,
+                                const MPMMaterial* mpm_matl,
+                                const PatchSet*);
 
-    void computeDeformationGradientFromVelocity(
-                                           constNCVariable<Vector> gVel,
-                                           ParticleSubset* pset,
-                                           constParticleVariable<Point> px,
-                                           constParticleVariable<Matrix3> psize,
-                                           constParticleVariable<Matrix3> Fold,
-                                           ParticleVariable<Matrix3> &Fnew,
-                                           Vector dx,
-                                           ParticleInterpolator* interp,
-                                           const double& delT);
+    void addComputesAndRequires(Task* task,
+                                const MPMMaterial* matl,
+                                const PatchSet* patches,
+                                const bool /*recurse*/,
+                                const bool SchedParent) const;
 
-    void computeDeformationGradientFromTotalDisplacement(
-                                           constNCVariable<Vector> gDisp,
-                                           ParticleSubset* pset,
-                                           constParticleVariable<Point> px,
-                                           ParticleVariable<Matrix3> &Fnew,
-                                           constParticleVariable<Matrix3> &Fold,
-                                           Vector dx,
-                                           constParticleVariable<Matrix3> psize,
-                                           ParticleInterpolator* interp);
-                                                                                
-    void computeDeformationGradientFromIncrementalDisplacement(
-                                           constNCVariable<Vector> IncDisp,
-                                           ParticleSubset* pset,
-                                           constParticleVariable<Point> px,
-                                           constParticleVariable<Matrix3> Fold,
-                                           ParticleVariable<Matrix3> &Fnew,
-                                           Vector dx,
-                                           constParticleVariable<Matrix3> psize,
-                                           ParticleInterpolator* interp);
+    void computeDeformationGradientExplicit(const Patch* patch,
+                                            const MPMMaterial* mpm_matl,
+                                            DataWarehouse& old_dw,
+                                            DataWarehouse& new_dw);
+
+    void computeDeformationGradientImplicit(const Patch* patch,
+                                            const MPMMaterial* mpm_matl,
+                                            DataWarehouse& old_dw,
+                                            DataWarehouse& parent_old_dw,
+                                            DataWarehouse& new_dw);
+
+  protected:
+
+    void addComputesAndRequiresExplicit(Task* task,
+                                        const MPMMaterial* mpm_matl);
+   
+    void addComputesAndRequiresImplicit(Task* task,
+                                        const MPMMaterial* mpm_matl);
+
+    void computeDeformationGradientFromVelocity(const Matrix3& velGrad_old,
+                                                const Matrix3& velGrad_new,
+                                                const Matrix3& defGrad_old,
+                                                const double& delT,
+                                                Matrix3& defGrad_new,
+                                                Matrix3& defGrad_inc);
+
+    void computeDeformationGradientFromTotalDisplacement(const Matrix3& dispGrad_new,
+                                                         const Matrix3& defGrad_old,
+                                                         Matrix3& defGrad_new,
+                                                         Matrix3& defGrad_inc);
+
+    void seriesUpdateConstantVelGrad(const Matrix3& velGrad_new,
+                                     const Matrix3& defGrad_old,
+                                     const double& delT,
+                                     Matrix3& defGrad_new,
+                                     Matrix3& defGrad_inc);
+
+    void seriesUpdateLinearVelGrad(const Matrix3& velGrad_old,
+                                   const Matrix3& velGrad_new,
+                                   const Matrix3& defGrad_old,
+                                   const double& delT,
+                                   Matrix3& defGrad_new,
+                                   Matrix3& defGrad_inc);
+
+    void subcycleUpdateConstantVelGrad(const Matrix3& velGrad_new,
+                                       const Matrix3& defGrad_old,
+                                       const double& delT,
+                                       Matrix3& defGrad_new,
+                                       Matrix3& defGrad_inc);
+
+    void computeDeformationGradientFromIncrementalDisplacement(const Matrix3& dispGrad_new,
+                                                               const Matrix3& defGrad_old,
+                                                               Matrix3& defGrad_new,
+                                                               Matrix3& defGrad_inc);
+
   protected:
 
     MPMLabel* lb;
