@@ -61,6 +61,10 @@ namespace Uintah {
     std::string d_integrator_type; // Explicit or implicit time integration
     IntegratorType d_integrator;
 
+    std::string d_defgrad_algorithm;       // Deformation gradient algorithm
+    int         d_numTermsSeriesDefGrad;   // Number of terms in series expansion
+                                           // for deformation gradient calculation
+
     bool        d_artificial_viscosity; // Turn artificial viscosity on/off
     bool        d_artificial_viscosity_heating; // Include heating due to AV
     bool        d_useLoadCurves; // Flag for using load curves

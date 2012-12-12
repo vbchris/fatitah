@@ -27,7 +27,6 @@ namespace Uintah {
     // Actually compute velocity gradient
     void computeVelGrad(const ParticleInterpolator* interpolator,
                         const double* oodx,
-                        const long64& particleID,
                         const Short27& pgCode,
                         const Point& px,
                         const Matrix3& pSize,

@@ -36,6 +36,10 @@ namespace Uintah {
 
   class DeformationGradientComputer {
 
+  private:
+
+    const Matrix3 Identity(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+
   public:
          
     DeformationGradientComputer(MPMFlags* MFlag);
@@ -45,6 +49,8 @@ namespace Uintah {
     // Make a clone of the gradient computer
     DeformationGradientComputer* clone();
 
+    void outputProblemSpec(ProblemSpecP& ps, bool output_cm_tag = true);
+    
     void computeDeformationGradientFromDisplacement(
                                            constNCVariable<Vector> gDisp,
                                            ParticleSubset* pset,

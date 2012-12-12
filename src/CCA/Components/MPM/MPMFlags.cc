@@ -53,6 +53,9 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_AMR = false;
   d_axisymmetric = false;
 
+  d_defgrad_algorithm = "first_order";
+  d_numTermsSeriesDefgrad = 1;
+
   d_artificial_viscosity = false;
   d_artificial_viscosity_heating = false;
   d_artificialViscCoeff1 = 0.2;
@@ -175,6 +178,22 @@ MPMFlags::readMPMFlags(ProblemSpecP& ps, Output* dataArchive)
      cerr << "where type is one of the following:" << endl;
      cerr << "linear, gimp, 3rdorderBS, cpdi" << endl;
     exit(1);
+  }
+
+  // Deformation gradient computer options
+  // Options other than "first_order"/"subcycling" should be defined in DeformationGradientComputer
+  // e.g. "constant_velgrad", "linear_velgrad", "constant_velgrad_subcycling", etc.
+  ProblemSpecP defgrad_ps = mpm_flag_ps->findBlock("deformation_gradient");
+  if (defgrad_ps) {
+    if (defgrad_ps->getAttribute("algorithm", d_defgrad_algorithm)) {
+      if (d_defgrad_algorithm == "first_order") {
+        d_numTermsSeriesDefGrad = 1;
+      } else if (d_defgrad_algorithm == "subcycling") {
+        d_numTermsSeriesDefGrad = 1;
+      } else {
+        defgrad_ps->getAttribute("num_terms", d_numTermsSeriesDefGrad);
+      }
+    }
   }
 
   mpm_flag_ps->get("interpolator", d_interpolator_type);

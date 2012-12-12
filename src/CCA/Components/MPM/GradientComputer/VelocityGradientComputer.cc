@@ -25,7 +25,6 @@ VelocityGradientComputer::~VelocityGradientComputer()
 void 
 VelocityGradientComputer::computeVelGrad(const ParticleInterpolator* interpolator,
                                          const double* oodx,
-                                         const long64& particleID,
                                          const Short27& pgCode,
                                          const Point& px,
                                          const Matrix3& pSize,
@@ -66,7 +65,7 @@ VelocityGradientComputer::computeVelGrad(const ParticleInterpolator* interpolato
   } // endif (!flag->d_axisymmetric)
 
   if (isnan(velGrad_new.Norm())) {
-    cerr << "Particle ID = " << particleID << " velGrad = " << velGrad_new << endl;
+    cerr << " velGrad = " << velGrad_new << endl;
     throw InvalidValue("**ERROR**: Nan in velocity gradient value", __FILE__, __LINE__);
   }
  
