@@ -122,7 +122,7 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
 
   // Deformation gradient computer
   d_defgrad_algorithm = "first_order";
-  d_numTermsSeriesDefgrad = 1;
+  d_numTermsSeriesDefGrad = 1;
 
 }
 
@@ -369,7 +369,7 @@ else{
       } else if (d_defgrad_algorithm == "subcycling") {
         d_numTermsSeriesDefGrad = 1;
       } else {
-        defgrad_ps->getAttribute("num_terms", d_numTermsSeriesDefGrad);
+        defgrad_ps->get("num_terms", d_numTermsSeriesDefGrad);
       }
     }
   }
@@ -461,7 +461,7 @@ MPMFlags::outputProblemSpec(ProblemSpecP& ps)
   // Deformation gradient computer options
   ProblemSpecP defgrad_ps = ps->appendChild("deformation_gradient");
   defgrad_ps->setAttribute("algorithm", d_defgrad_algorithm);
-  defgrad_ps->setAttribute("num_terms", d_numTermsSeriesDefGrad);
+  defgrad_ps->appendElement("num_terms", d_numTermsSeriesDefGrad);
 
 }
 

@@ -52,6 +52,7 @@ add_subdirectory(CohesiveZone)
 add_subdirectory(Crack)
 add_subdirectory(HeatConduction)
 add_subdirectory(MMS)
+add_subdirectory(GradientComputer)
 
 SET(LIBS
   Packages_Uintah_CCA_Ports

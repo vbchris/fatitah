@@ -97,6 +97,8 @@ MPMLabel::MPMLabel()
   // (named such that there is minimal disruption of existing code)
   pVelGradLabel = VarLabel::create("p.velocityGradient",
 			ParticleVariable<Matrix3>::getTypeDescription());
+  pDispGradLabel = VarLabel::create("p.displacementGradient",
+			ParticleVariable<Matrix3>::getTypeDescription());
   pDefGradLabel = VarLabel::create("p.deformationGradient",
 			ParticleVariable<Matrix3>::getTypeDescription());
 
@@ -175,6 +177,8 @@ MPMLabel::MPMLabel()
   // Extra labels for the velocity gradient and the deformation gradient
   // (named such that there is minimal disruption of existing code)
   pVelGradLabel_preReloc = VarLabel::create("p.velocityGradient+",
+			ParticleVariable<Matrix3>::getTypeDescription());
+  pDispGradLabel_preReloc = VarLabel::create("p.displacementGradient+",
 			ParticleVariable<Matrix3>::getTypeDescription());
   pDefGradLabel_preReloc = VarLabel::create("p.deformationGradient+",
 			ParticleVariable<Matrix3>::getTypeDescription());
@@ -677,6 +681,14 @@ MPMLabel::~MPMLabel()
   VarLabel::destroy(pTemperatureGradientLabel);
   VarLabel::destroy(pTempCurrentLabel); // for thermal stress
   VarLabel::destroy(pXXLabel);
+
+  // Deformation gradient related stuff
+  VarLabel::destroy(pDefGradLabel);
+  VarLabel::destroy(pVelGradLabel);
+  VarLabel::destroy(pDispGradLabel);
+  VarLabel::destroy(pDefGradLabel_preReloc);
+  VarLabel::destroy(pVelGradLabel_preReloc);
+  VarLabel::destroy(pDispGradLabel_preReloc);
 
   //PermanentParticleState
   VarLabel::destroy(pDeformationMeasureLabel);

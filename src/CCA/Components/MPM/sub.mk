@@ -60,6 +60,7 @@ SUBDIRS := \
 	$(SRCDIR)/CohesiveZone   \
 	$(SRCDIR)/Crack		    \
 	$(SRCDIR)/HeatConduction    \
+	$(SRCDIR)/GradientComputer    \
 	$(SRCDIR)/MMS
 
 include $(SCIRUN_SCRIPTS)/recurse.mk

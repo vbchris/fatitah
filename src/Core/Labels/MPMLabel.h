@@ -62,10 +62,12 @@ using std::vector;
       // of existing code in mind).  These labels are used in the MPM
       // task that compute the velocity gradient and the defromation
       // gradient.
-      const VarLabel* pVelGrad;
-      const VarLabel* pVelGrad_preReloc;
-      const VarLabel* pDefGrad;
-      const VarLabel* pDefGrad_preReloc;
+      const VarLabel* pVelGradLabel;
+      const VarLabel* pVelGradLabel_preReloc;
+      const VarLabel* pDispGradLabel;
+      const VarLabel* pDispGradLabel_preReloc;
+      const VarLabel* pDefGradLabel;
+      const VarLabel* pDefGradLabel_preReloc;
 
       //PermanentParticleState
       const VarLabel* pDeformationMeasureLabel;

@@ -1,31 +1,25 @@
 #ifndef __DEFORMATION_GRADIENT_COMPUTER_H__
 #define __DEFORMATION_GRADIENT_COMPUTER_H__
 
+#include <Core/Grid/Task.h>
+#include <Core/Grid/Patch.h>
+#include <Core/Grid/Level.h>
+#include <Core/Grid/Variables/VarLabel.h>
+#include <Core/Grid/Variables/ParticleSubset.h>
+#include <Core/Grid/Variables/ParticleVariableBase.h>
 #include <Core/Grid/Variables/ComputeSet.h>
-#include <vector>
+#include <Core/Grid/SimulationStateP.h>
+#include <Core/Labels/MPMLabel.h>
 #include <Core/Math/Matrix3.h>
 #include <Core/Math/Short27.h>
 #include <Core/Containers/StaticArray.h>
-#include <Core/Grid/SimulationStateP.h>
-#include <Core/Grid/Variables/Array3.h>
-#include <Core/Grid/Variables/NCVariable.h>
-#include <Core/Grid/Variables/ParticleVariable.h>
-#include <Core/Grid/LinearInterpolator.h>
 #include <Core/Parallel/ProcessorGroup.h>
-#include <Core/Math/FastMatrix.h>
+#include <CCA/Ports/DataWarehouse.h>
 #include <CCA/Components/MPM/MPMFlags.h>
+#include <CCA/Components/MPM/ConstitutiveModel/MPMMaterial.h>
+#include <vector>
 
 namespace Uintah {
-
-  class Task;
-  class Patch;
-  class VarLabel;
-  class MPMLabel;
-  class MPMFlags;
-  class MPMMaterial;
-  class DataWarehouse;
-  class ParticleSubset;
-  class ParticleVariableBase;
 
   //////////////////////////////////////////////////////////////////////////
   /*!
@@ -36,10 +30,6 @@ namespace Uintah {
 
   class DeformationGradientComputer {
 
-  private:
-
-    const Matrix3 Identity(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
-    const Matrix3 Zero(0.0);
 
   public:
          
@@ -90,22 +80,6 @@ namespace Uintah {
                                     DataWarehouse* new_dw,
                                     const bool recurse);
 
-    void computeDeformationGradientExplicit(const Patch* patch,
-                                            const MPMMaterial* mpm_matl,
-                                            DataWarehouse* old_dw,
-                                            DataWarehouse* new_dw);
-
-    void computeDeformationGradientImplicit(const Patch* patch,
-                                            const MPMMaterial* mpm_matl,
-                                            DataWarehouse* old_dw,
-                                            DataWarehouse* new_dw);
-
-    void computeDeformationGradientImplicit(const Patch* patch,
-                                            const MPMMaterial* mpm_matl,
-                                            DataWarehouse* old_dw,
-                                            DataWarehouse* parent_old_dw,
-                                            DataWarehouse* new_dw);
-
   protected:
 
     void addComputesAndRequiresExplicit(Task* task,
@@ -121,6 +95,23 @@ namespace Uintah {
     void initializeGradientImplicit(const Patch* patch,
                                     const MPMMaterial* mpm_matl,
                                     DataWarehouse* new_dw);
+
+    void computeDeformationGradientExplicit(const Patch* patch,
+                                            const MPMMaterial* mpm_matl,
+                                            const double& delT,
+                                            DataWarehouse* old_dw,
+                                            DataWarehouse* new_dw);
+
+    void computeDeformationGradientImplicit(const Patch* patch,
+                                            const MPMMaterial* mpm_matl,
+                                            DataWarehouse* old_dw,
+                                            DataWarehouse* new_dw);
+
+    void computeDeformationGradientImplicit(const Patch* patch,
+                                            const MPMMaterial* mpm_matl,
+                                            DataWarehouse* old_dw,
+                                            DataWarehouse* parent_old_dw,
+                                            DataWarehouse* new_dw);
 
     void computeDeformationGradientFromVelocity(const Matrix3& velGrad_old,
                                                 const Matrix3& velGrad_new,
@@ -164,6 +155,9 @@ namespace Uintah {
     MPMFlags* flag;
     int NGP;
     int NGN;
+    SimulationState* d_sharedState;
+    static Matrix3 Identity;
+    static Matrix3 Zero;
   };
 
 } // End namespace Uintah

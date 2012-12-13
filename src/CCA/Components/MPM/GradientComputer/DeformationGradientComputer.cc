@@ -1,5 +1,15 @@
 #include <CCA/Components/MPM/GradientComputer/DeformationGradientComputer.h>
+#include <CCA/Components/MPM/GradientComputer/VelocityGradientComputer.h>
+#include <CCA/Components/MPM/GradientComputer/DisplacementGradientComputer.h>
+#include <CCA/Ports/DataWarehouseP.h>
+#include <Core/Grid/Variables/VarTypes.h>
+#include <Core/Grid/Variables/NCVariable.h>
+#include <Core/Grid/Variables/ParticleVariable.h>
+#include <Core/Grid/Variables/NodeIterator.h>
+#include <Core/Disclosure/TypeDescription.h>
 #include <Core/Exceptions/InvalidValue.h>
+#include <Core/Malloc/Allocator.h>
+#include <Core/Util/Endian.h>
 #include <iostream>
 
 using namespace Uintah;
@@ -13,14 +23,19 @@ DeformationGradientComputer::DeformationGradientComputer(MPMFlags* Mflag)
   } else{ 
     NGN=2;
   }
+  Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+  Zero = Matrix3(0.0);
 }
 
 DeformationGradientComputer::DeformationGradientComputer(const DeformationGradientComputer* dg)
 {
   lb = scinew MPMLabel();
-  flag = cm->flag;
-  NGN = cm->NGN;
-  NGP = cm->NGP;
+  flag = dg->flag;
+  NGN = dg->NGN;
+  NGP = dg->NGP;
+  d_sharedState = dg->d_sharedState;
+  Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+  Zero = Matrix3(0.0);
 }
 
 DeformationGradientComputer* DeformationGradientComputer::clone()
@@ -81,9 +96,9 @@ DeformationGradientComputer::addComputesAndRequires(Task* task,
     task->computes(lb->pDefGradLabel_preReloc,     matlset);
     task->computes(lb->pVolumeDeformedLabel,       matlset);
     if (flag->d_doGridReset) {
-      task->requires(Task::OldDW, d_lb->dispNewLabel,       matlset, gac,1);
+      task->requires(Task::OldDW, lb->dispNewLabel,       matlset, gac,1);
     } else {
-      task->requires(Task::OldDW, d_lb->gDisplacementLabel, matlset, gac,1);
+      task->requires(Task::OldDW, lb->gDisplacementLabel, matlset, gac,1);
     }
   } else {
     task->requires(Task::OldDW, lb->pXLabel,           matlset, gnone);
@@ -190,7 +205,7 @@ void DeformationGradientComputer::copyAndDeleteForConvert(DataWarehouse* new_dw,
   if(flag->d_integrator != MPMFlags::Implicit){
     ParticleVariable<Matrix3>     o_pVelGrad;
     ParticleVariable<Matrix3>     pVelGrad;
-    new_dw->get(o_pVelGrad, lb->pVelGrad_preReloc, delset);
+    new_dw->get(o_pVelGrad, lb->pVelGradLabel_preReloc, delset);
     new_dw->allocateTemporary(pVelGrad,   addset);
     ParticleSubset::iterator o,n = addset->begin();
     for (o=delset->begin(); o != delset->end(); o++, n++) {
@@ -201,9 +216,9 @@ void DeformationGradientComputer::copyAndDeleteForConvert(DataWarehouse* new_dw,
 
   ParticleVariable<double>      o_pVolume;
   ParticleVariable<Matrix3>     o_pDispGrad, o_pDefGrad;
-  new_dw->get(o_pVolume,   lb->pVolumeDeformed_preReloc, delset);
-  new_dw->get(o_pDefGrad,  lb->pDefGrad_preReloc,        delset);
-  new_dw->get(o_pDispGrad, lb->pDispGrad_preReloc,       delset);
+  new_dw->get(o_pVolume,   lb->pVolumeDeformedLabel,          delset);
+  new_dw->get(o_pDefGrad,  lb->pDefGradLabel_preReloc,        delset);
+  new_dw->get(o_pDispGrad, lb->pDispGradLabel_preReloc,       delset);
 
   ParticleVariable<double>      pVolume;
   ParticleVariable<Matrix3>     pDispGrad, pDefGrad;
@@ -221,27 +236,6 @@ void DeformationGradientComputer::copyAndDeleteForConvert(DataWarehouse* new_dw,
   (*newState)[lb->pVolumeLabel]   = pVolume.clone();
   (*newState)[lb->pDefGradLabel]  = pDefGrad.clone();
   (*newState)[lb->pDispGradLabel] = pDispGrad.clone();
-
-  } else {  // Explicit
-    ParticleVariable<Matrix3>     deformationGradient, pstress;
-    new_dw->allocateTemporary(deformationGradient,addset);
-    new_dw->allocateTemporary(pstress,            addset);
-
-    constParticleVariable<Matrix3> o_deformationGradient, o_stress;
-    new_dw->get(o_deformationGradient,lb->pDeformationMeasureLabel_preReloc,
-                                                   delset);
-    new_dw->get(o_stress,             lb->pStressLabel_preReloc,
-                                                   delset);
-
-    ParticleSubset::iterator o,n = addset->begin();
-    for (o=delset->begin(); o != delset->end(); o++, n++) {
-      deformationGradient[*n] = o_deformationGradient[*o];
-      pstress[*n]             = o_stress[*o];
-    }
-
-    (*newState)[lb->pDeformationMeasureLabel]=deformationGradient.clone();
-    (*newState)[lb->pStressLabel]=pstress.clone();
-  }
 }
 
 // Initial velocity/displacement/deformation gradients
@@ -251,9 +245,9 @@ DeformationGradientComputer::initializeGradient(const Patch* patch,
                                                 DataWarehouse* new_dw)
 {
   if (flag->d_integrator == MPMFlags::Implicit) {
-    initializeGradientImplicit(patch, matl, new_dw);
+    initializeGradientImplicit(patch, mpm_matl, new_dw);
   } else {
-    initializeGradientExplicit(patch, matl, new_dw);
+    initializeGradientExplicit(patch, mpm_matl, new_dw);
   }
 }
 
@@ -262,7 +256,7 @@ DeformationGradientComputer::initializeGradientExplicit(const Patch* patch,
                                                         const MPMMaterial* mpm_matl,
                                                         DataWarehouse* new_dw)
 {
-  ParticleSubset* pset = new_dw->getParticleSubset(matl->getDWIndex(), patch);
+  ParticleSubset* pset = new_dw->getParticleSubset(mpm_matl->getDWIndex(), patch);
   ParticleVariable<Matrix3> pVelGrad, pDispGrad, pDefGrad;
   new_dw->allocateAndPut(pVelGrad,  lb->pVelGradLabel,  pset);
   new_dw->allocateAndPut(pDispGrad, lb->pDispGradLabel, pset);
@@ -281,7 +275,7 @@ DeformationGradientComputer::initializeGradientImplicit(const Patch* patch,
                                                         const MPMMaterial* mpm_matl,
                                                         DataWarehouse* new_dw)
 {
-  ParticleSubset* pset = new_dw->getParticleSubset(matl->getDWIndex(), patch);
+  ParticleSubset* pset = new_dw->getParticleSubset(mpm_matl->getDWIndex(), patch);
   ParticleVariable<Matrix3> pDispGrad, pDefGrad;
   new_dw->allocateAndPut(pDispGrad, lb->pDispGradLabel, pset);
   new_dw->allocateAndPut(pDefGrad,  lb->pDefGradLabel,  pset);
@@ -296,10 +290,11 @@ DeformationGradientComputer::initializeGradientImplicit(const Patch* patch,
 //-----------------------------------------------------------------------
 //  Actually compute deformation gradient
 //-----------------------------------------------------------------------
-void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* patches,
-                                                             const MPMMaterial* mpm_matl,
-                                                             DataWarehouse* old_dw,
-                                                             DataWarehouse* new_dw)
+void 
+DeformationGradientComputer::computeDeformationGradient(const PatchSubset* patches,
+                                                        const MPMMaterial* mpm_matl,
+                                                        DataWarehouse* old_dw,
+                                                        DataWarehouse* new_dw)
 {
   // Get delT
   delt_vartype delT;
@@ -312,7 +307,6 @@ void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* 
     // Loop thru patches
     for (int pp = 0; pp < patches->size(); pp++) {
       const Patch* patch = patches->get(pp);
-      printTask(patches, patch, cout_doing, "Doing computeDeformationGradient");
 
       int numMPMMatls=d_sharedState->getNumMPMMatls();
       for(int m = 0; m < numMPMMatls; m++){
@@ -321,7 +315,7 @@ void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* 
         MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial( m );
 
         // Compute deformation gradient
-        computeDeformationGradentImplicit(patch, mpm_matl, old_dw, new_dw);
+        computeDeformationGradientImplicit(patch, mpm_matl, old_dw, new_dw);
       }
     }
 
@@ -330,7 +324,6 @@ void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* 
     // Loop thru patches
     for (int pp = 0; pp < patches->size(); pp++) {
       const Patch* patch = patches->get(pp);
-      printTask(patches, patch, cout_doing, "Doing computeDeformationGradient");
 
       int numMPMMatls=d_sharedState->getNumMPMMatls();
       for(int m = 0; m < numMPMMatls; m++){
@@ -339,7 +332,7 @@ void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* 
         MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial( m );
 
         // Compute deformation gradient
-        computeDeformationGradentExplicit(patch, mpm_matl, old_dw, new_dw);
+        computeDeformationGradientExplicit(patch, mpm_matl, delT, old_dw, new_dw);
       }
     }
 
@@ -349,11 +342,12 @@ void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* 
 //-----------------------------------------------------------------------
 //  Actually compute deformation gradient (for implicit only)
 //-----------------------------------------------------------------------
-void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* patches,
-                                                             const MPMMaterial* mpm_matl,
-                                                             DataWarehouse* old_dw,
-                                                             DataWarehouse* new_dw,
-                                                             bool recurse)
+void 
+DeformationGradientComputer::computeDeformationGradient(const PatchSubset* patches,
+                                                        const MPMMaterial* mpm_matl,
+                                                        DataWarehouse* old_dw,
+                                                        DataWarehouse* new_dw,
+                                                        bool recurse)
 {
   std::cerr << "Fully implicit computeDeformationGradient not implemented yet." << endl;
   exit(1);
@@ -363,9 +357,14 @@ void DeformationGradientComputer::computeDeformationGradient(const PatchSubset* 
 void
 DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* patch,
                                                                 const MPMMaterial* mpm_matl,
+                                                                const double& delT,
                                                                 DataWarehouse* old_dw,
                                                                 DataWarehouse* new_dw)
 {
+  // Constants
+  Ghost::GhostType  gnone = Ghost::None;
+  Ghost::GhostType  gac   = Ghost::AroundCells;
+
   // Get particle info and patch info
   int dwi = mpm_matl->getDWIndex();
   ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
@@ -469,14 +468,14 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
     if (!(J > 0.0)) {
       constParticleVariable<long64> pParticleID;
       old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-      cerr << "matl = "  << mpm_matl << " dwi = " << dwi << " particle = " << idx
+      std::cerr << "matl = "  << mpm_matl << " dwi = " << dwi << " particle = " << idx
            << " particleID = " << pParticleID[idx] << endl;
-      cerr << "velGrad = " << velGrad_new << endl;
-      cerr << "F_old = " << pDefGrad_old[idx]     << endl;
-      cerr << "F_inc = " << defGradInc       << endl;
-      cerr << "F_new = " << pDefGrad_new[idx] << endl;
-      cerr << "J = "     << J                 << endl;
-      cerr << "**ERROR** Negative Jacobian of deformation gradient in material # ="
+      std::cerr << "velGrad = " << pVelGrad_new[idx] << endl;
+      std::cerr << "F_old = " << pDefGrad_old[idx]     << endl;
+      std::cerr << "F_inc = " << defGrad_inc       << endl;
+      std::cerr << "F_new = " << pDefGrad_new[idx] << endl;
+      std::cerr << "J = "     << J                 << endl;
+      std::cerr << "**ERROR** Negative Jacobian of deformation gradient in material # ="
            << mpm_matl << " and particle " << pParticleID[idx]  << " which has mass "
            << pMass[idx] << endl;
       throw InvalidValue("**ERROR**:", __FILE__, __LINE__);
@@ -515,6 +514,7 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
     }
 
     // Step 2: loop thru particles again to compute corrected def grad
+    Matrix3 defGrad_inc(0.0);
     for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
       particleIndex idx = *iter;
       IntVector cell_index;
@@ -526,24 +526,24 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
       // Change F such that the determinant is equal to the average for
       // the cell
       pDefGrad_new[idx]*=cbrt(J_CC[cell_index]/J);
-      defGradInc = pDefGrad_new[idx]*pDefGrad_old[idx].Inverse();
+      defGrad_inc = pDefGrad_new[idx]*pDefGrad_old[idx].Inverse();
 
       // Update the deformed volume
-      J = pdefGrad_new[idx].Determinant();
+      J = pDefGrad_new[idx].Determinant();
       pVolume_new[idx]= (pMass[idx]/rho_orig)*J;
 
       // Check 1: Look at Jacobian
       if (!(J > 0.0)) {
-        cerr << "after pressure stab "          << endl;
-        cerr << "matl = "  << mpm_matl          << endl;
-        cerr << "F_old = " << pDefGrad[idx]     << endl;
-        cerr << "F_inc = " << pDefGradInc       << endl;
-        cerr << "F_new = " << pDefGrad_new[idx] << endl;
-        cerr << "J = "     << J                 << endl;
+        std::cerr << "after pressure stab "          << endl;
+        std::cerr << "matl = "  << mpm_matl          << endl;
+        std::cerr << "F_old = " << pDefGrad_old[idx]     << endl;
+        std::cerr << "F_inc = " << defGrad_inc       << endl;
+        std::cerr << "F_new = " << pDefGrad_new[idx] << endl;
+        std::cerr << "J = "     << J                 << endl;
         constParticleVariable<long64> pParticleID;
         old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-        cerr << "ParticleID = " << pParticleID[idx] << endl;
-        cerr << "**ERROR** Negative Jacobian of deformation gradient"
+        std::cerr << "ParticleID = " << pParticleID[idx] << endl;
+        std::cerr << "**ERROR** Negative Jacobian of deformation gradient"
              << " in particle " << pParticleID[idx]  << " which has mass "
              << pMass[idx] << endl;
         throw InvalidValue("**ERROR**:Negative Jacobian in UCNH", __FILE__, __LINE__);
@@ -562,6 +562,10 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
                                                                 DataWarehouse* old_dw,
                                                                 DataWarehouse* new_dw)
 {
+  // Constants
+  Ghost::GhostType  gnone = Ghost::None;
+  Ghost::GhostType  gac   = Ghost::AroundCells;
+
   // Get particle info and patch info
   int dwi = mpm_matl->getDWIndex();
   ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
@@ -614,6 +618,8 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
     old_dw->get(gDisp, lb->dispNewLabel, dwi, patch, gac, 1);
     for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
 
+      particleIndex idx = *iter;
+
       // Compute incremental displacement gradient
       DisplacementGradientComputer gradComp(flag);
       Matrix3 dispGrad_new(0.0);
@@ -621,18 +627,23 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
                                pDefGrad_old[idx], gDisp, dispGrad_new);
 
       // Compute the deformation gradient from displacement
+      Matrix3 defGrad_new(0.0);
+      Matrix3 defGrad_inc(0.0);
       computeDeformationGradientFromIncrementalDisplacement(dispGrad_new, pDefGrad_old[idx], defGrad_new, defGrad_inc);
 
       // Update deformation gradient
       pDefGrad_new[idx] = defGrad_new;
 
       //  Compute updated volume
+      double J = defGrad_new.Determinant();
       pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
     }
   } else {
     constNCVariable<Vector> gDisp;
     old_dw->get(gDisp, lb->gDisplacementLabel, dwi, patch, gac, 1);
     for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
+
+      particleIndex idx = *iter;
 
       // Compute total displacement gradient
       DisplacementGradientComputer gradComp(flag);
@@ -641,12 +652,15 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
                                pDefGrad_old[idx], gDisp, dispGrad_new);
 
       // Compute the deformation gradient from displacement
+      Matrix3 defGrad_new(0.0);
+      Matrix3 defGrad_inc(0.0);
       computeDeformationGradientFromTotalDisplacement(dispGrad_new, pDefGrad_old[idx], defGrad_new, defGrad_inc);
 
       // Update deformation gradient
       pDefGrad_new[idx] = defGrad_new;
 
       //  Compute updated volume
+      double J = defGrad_new.Determinant();
       pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
     }
   }
@@ -662,6 +676,10 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
                                                                 DataWarehouse* parent_old_dw,
                                                                 DataWarehouse* new_dw)
 {
+  // Constants
+  Ghost::GhostType  gnone = Ghost::None;
+  Ghost::GhostType  gac   = Ghost::AroundCells;
+
   // Get particle info and patch info
   int dwi = mpm_matl->getDWIndex();
   ParticleSubset* pset = parent_old_dw->getParticleSubset(dwi, patch);
@@ -714,6 +732,8 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
     old_dw->get(gDisp, lb->dispNewLabel, dwi, patch, gac, 1);
     for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
 
+      particleIndex idx = *iter;
+
       // Compute incremental displacement gradient
       DisplacementGradientComputer gradComp(flag);
       Matrix3 dispGrad_new(0.0);
@@ -721,18 +741,23 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
                                pDefGrad_old[idx], gDisp, dispGrad_new);
 
       // Compute the deformation gradient from displacement
+      Matrix3 defGrad_new(0.0);
+      Matrix3 defGrad_inc(0.0);
       computeDeformationGradientFromIncrementalDisplacement(dispGrad_new, pDefGrad_old[idx], defGrad_new, defGrad_inc);
 
       // Update deformation gradient
       pDefGrad_new[idx] = defGrad_new;
 
       //  Compute updated volume
+      double J = defGrad_new.Determinant();
       pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
     }
   } else {
     constNCVariable<Vector> gDisp;
     old_dw->get(gDisp, lb->gDisplacementLabel, dwi, patch, gac, 1);
     for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
+
+      particleIndex idx = *iter;
 
       // Compute total displacement gradient
       DisplacementGradientComputer gradComp(flag);
@@ -741,12 +766,15 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
                                pDefGrad_old[idx], gDisp, dispGrad_new);
 
       // Compute the deformation gradient from displacement
+      Matrix3 defGrad_new(0.0);
+      Matrix3 defGrad_inc(0.0);
       computeDeformationGradientFromTotalDisplacement(dispGrad_new, pDefGrad_old[idx], defGrad_new, defGrad_inc);
 
       // Update deformation gradient
       pDefGrad_new[idx] = defGrad_new;
 
       //  Compute updated volume
+      double J = defGrad_new.Determinant();
       pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
     }
   }
@@ -765,16 +793,16 @@ DeformationGradientComputer::computeDeformationGradientFromVelocity(const Matrix
   // Compute deformation gradient
   // **NOTE** Use function pointers in next iteration (TO DO)
   if (flag->d_numTermsSeriesDefGrad == 1) {
-    if (d_defgrad_algorithm == "first_order") {
+    if (flag->d_defgrad_algorithm == "first_order") {
       seriesUpdateConstantVelGrad(velGrad_new, defGrad_old, delT, defGrad_new, defGrad_inc);
     } else {
       subcycleUpdateConstantVelGrad(velGrad_new, defGrad_old, delT, defGrad_new, defGrad_inc);
     }
   } else {
-    if (d_defgrad_algorithm == "constant_velgrad") {
+    if (flag->d_defgrad_algorithm == "constant_velgrad") {
       seriesUpdateConstantVelGrad(velGrad_new, defGrad_old, delT, defGrad_new, defGrad_inc);
     } else {
-      seriesUpdateLinearVelGrad(velGrad_old, velGrad_new, defGrad_old, delT, defGrad_new, defGrad_inc)
+      seriesUpdateLinearVelGrad(velGrad_old, velGrad_new, defGrad_old, delT, defGrad_new, defGrad_inc);
     }
   }
   return;
@@ -788,7 +816,7 @@ DeformationGradientComputer::computeDeformationGradientFromTotalDisplacement(con
 {
   // Update the deformation gradient tensor to its time n+1 value.
   // Compute the deformation gradient from the displacement gradient
-  defGrad_new = Identity + dispGrad;
+  defGrad_new = Identity + dispGrad_new;
   defGrad_inc = defGrad_new*defGrad_old.Inverse();
 
   return;
@@ -838,9 +866,9 @@ DeformationGradientComputer::subcycleUpdateConstantVelGrad(const Matrix3& velGra
   Matrix3 Identity; Identity.Identity();
   defGrad_new = defGrad_old;
   double Lnorm_dt = velGrad_new.Norm()*delT;
-  int num_scs = max(1,2*((int) Lnorm_dt));
+  int num_scs = std::max(1,2*((int) Lnorm_dt));
   if (num_scs > 1000) {
-    cout << "NUM_SCS = " << num_scs << endl;
+    std::cout << "NUM_SCS = " << num_scs << endl;
   }
   double dtsc = delT/(double (num_scs));
   Matrix3 OP_tensorL_DT = Identity + velGrad_new*dtsc;

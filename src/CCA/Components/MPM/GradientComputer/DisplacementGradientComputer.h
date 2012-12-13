@@ -27,9 +27,10 @@ namespace Uintah {
     // Actually compute displacement gradient
     void computeDispGrad(const ParticleInterpolator* interp,
                          const double* oodx,
-                         constParticleVariable<Point> px,
-                         constParticleVariable<Matrix3> psize,
-                         constParticleVariable<Matrix3> pDefGrad_old,
+                         const Point& px,
+                         const Matrix3& psize,
+                         const Matrix3& pDefGrad_old,
+                         constNCVariable<Vector> gDisp,
                          Matrix3& dispGrad_new);
 
   };
