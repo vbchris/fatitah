@@ -45,6 +45,7 @@
 #include <CCA/Components/MPM/PhysicalBC/MPMPhysicalBC.h>
 #include <CCA/Components/MPM/PhysicalBC/LoadCurve.h>
 #include <CCA/Components/OnTheFlyAnalysis/AnalysisModule.h>
+#include <CCA/Components/MPM/GradientComputer/DeformationGradientComputer.h>
 #include <Core/Grid/Variables/ParticleVariable.h>
 
 
@@ -434,9 +435,6 @@ protected:
   virtual void scheduleComputeStressTensor(SchedulerP&, const PatchSet*,
                                            const MaterialSet*);
   
-  void scheduleComputeDeformationGradient(SchedulerP&, const PatchSet*,
-                                          const MaterialSet*);
-
   void scheduleUpdateErosionParameter(SchedulerP& sched,
                                       const PatchSet* patches,
                                       const MaterialSet* matls);
@@ -580,6 +578,7 @@ protected:
   MPMLabel* lb;
   MPMFlags* flags;
   Output* dataArchiver;
+  DeformationGradientComputer* d_defGradComputer;
 
   double           d_nextOutputTime;
   double           d_SMALL_NUM_MPM;

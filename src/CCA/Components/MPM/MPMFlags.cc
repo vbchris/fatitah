@@ -53,9 +53,6 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_AMR = false;
   d_axisymmetric = false;
 
-  d_defgrad_algorithm = "first_order";
-  d_numTermsSeriesDefgrad = 1;
-
   d_artificial_viscosity = false;
   d_artificial_viscosity_heating = false;
   d_artificialViscCoeff1 = 0.2;
@@ -112,8 +109,8 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_reductionVars->volDeformed      = false;
   d_reductionVars->centerOfMass     = false;
 
-// MMS
-if(d_mms_type=="AxisAligned"){
+  // MMS
+  if(d_mms_type=="AxisAligned"){
     d_mms_type = "AxisAligned";
   } else if(d_mms_type=="GeneralizedVortex"){
     d_mms_type = "GeneralizedVortex";
@@ -122,6 +119,11 @@ if(d_mms_type=="AxisAligned"){
   } else if(d_mms_type=="AxisAligned3L"){
     d_mms_type = "AxisAligned3L";
   }
+
+  // Deformation gradient computer
+  d_defgrad_algorithm = "first_order";
+  d_numTermsSeriesDefgrad = 1;
+
 }
 
 MPMFlags::~MPMFlags()
@@ -178,22 +180,6 @@ MPMFlags::readMPMFlags(ProblemSpecP& ps, Output* dataArchive)
      cerr << "where type is one of the following:" << endl;
      cerr << "linear, gimp, 3rdorderBS, cpdi" << endl;
     exit(1);
-  }
-
-  // Deformation gradient computer options
-  // Options other than "first_order"/"subcycling" should be defined in DeformationGradientComputer
-  // e.g. "constant_velgrad", "linear_velgrad", "constant_velgrad_subcycling", etc.
-  ProblemSpecP defgrad_ps = mpm_flag_ps->findBlock("deformation_gradient");
-  if (defgrad_ps) {
-    if (defgrad_ps->getAttribute("algorithm", d_defgrad_algorithm)) {
-      if (d_defgrad_algorithm == "first_order") {
-        d_numTermsSeriesDefGrad = 1;
-      } else if (d_defgrad_algorithm == "subcycling") {
-        d_numTermsSeriesDefGrad = 1;
-      } else {
-        defgrad_ps->getAttribute("num_terms", d_numTermsSeriesDefGrad);
-      }
-    }
   }
 
   mpm_flag_ps->get("interpolator", d_interpolator_type);
@@ -372,6 +358,22 @@ else{
 
   mpm_flag_ps->get("UseMomentumForm", d_use_momentum_form);
 
+  // Deformation gradient computer options
+  // Options other than "first_order"/"subcycling" should be defined in DeformationGradientComputer
+  // e.g. "constant_velgrad", "linear_velgrad", "constant_velgrad_subcycling", etc.
+  ProblemSpecP defgrad_ps = mpm_flag_ps->findBlock("deformation_gradient");
+  if (defgrad_ps) {
+    if (defgrad_ps->getAttribute("algorithm", d_defgrad_algorithm)) {
+      if (d_defgrad_algorithm == "first_order") {
+        d_numTermsSeriesDefGrad = 1;
+      } else if (d_defgrad_algorithm == "subcycling") {
+        d_numTermsSeriesDefGrad = 1;
+      } else {
+        defgrad_ps->getAttribute("num_terms", d_numTermsSeriesDefGrad);
+      }
+    }
+  }
+
   if (dbg.active()) {
     dbg << "---------------------------------------------------------\n";
     dbg << "MPM Flags " << endl;
@@ -455,6 +457,12 @@ MPMFlags::outputProblemSpec(ProblemSpecP& ps)
   ps->appendElement("boundary_traction_faces", d_bndy_face_txt_list);
 
   ps->appendElement("UseMomentumForm", d_use_momentum_form);
+
+  // Deformation gradient computer options
+  ProblemSpecP defgrad_ps = ps->appendChild("deformation_gradient");
+  defgrad_ps->setAttribute("algorithm", d_defgrad_algorithm);
+  defgrad_ps->setAttribute("num_terms", d_numTermsSeriesDefGrad);
+
 }
 
 

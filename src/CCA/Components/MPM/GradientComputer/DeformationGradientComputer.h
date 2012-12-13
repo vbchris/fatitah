@@ -39,6 +39,7 @@ namespace Uintah {
   private:
 
     const Matrix3 Identity(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+    const Matrix3 Zero(0.0);
 
   public:
          
@@ -50,6 +51,10 @@ namespace Uintah {
     DeformationGradientComputer* clone();
 
     // Computes and requires     
+    void addInitialComputesAndRequires(Task* task,
+                                       const MPMMaterial* mpm_matl,
+                                       const PatchSet*);
+
     void addComputesAndRequires(Task* task,
                                 const MPMMaterial* mpm_matl,
                                 const PatchSet*);
@@ -60,16 +65,46 @@ namespace Uintah {
                                 const bool /*recurse*/,
                                 const bool SchedParent) const;
 
+    void addRequiresForConvert(Task* task,
+                               const MPMMaterial* mpm_matl);
+
+    void copyAndDeleteForConvert(DataWarehouse* new_dw,
+                                 ParticleSubset* addset,
+                                 map<const VarLabel*,
+                                 ParticleVariableBase*>* newState,
+                                 ParticleSubset* delset,
+                                 DataWarehouse* old_dw );
+
+    void initializeGradient(const Patch* patch,
+                            const MPMMaterial* mpm_matl,
+                            DataWarehouse* new_dw);
+
+    void computeDeformationGradient(const PatchSubset* patches,
+                                    const MPMMaterial* mpm_matl,
+                                    DataWarehouse* old_dw,
+                                    DataWarehouse* new_dw);
+
+    void computeDeformationGradient(const PatchSubset* patches,
+                                    const MPMMaterial* mpm_matl,
+                                    DataWarehouse* old_dw,
+                                    DataWarehouse* new_dw,
+                                    const bool recurse);
+
     void computeDeformationGradientExplicit(const Patch* patch,
                                             const MPMMaterial* mpm_matl,
-                                            DataWarehouse& old_dw,
-                                            DataWarehouse& new_dw);
+                                            DataWarehouse* old_dw,
+                                            DataWarehouse* new_dw);
 
     void computeDeformationGradientImplicit(const Patch* patch,
                                             const MPMMaterial* mpm_matl,
-                                            DataWarehouse& old_dw,
-                                            DataWarehouse& parent_old_dw,
-                                            DataWarehouse& new_dw);
+                                            DataWarehouse* old_dw,
+                                            DataWarehouse* new_dw);
+
+    void computeDeformationGradientImplicit(const Patch* patch,
+                                            const MPMMaterial* mpm_matl,
+                                            DataWarehouse* old_dw,
+                                            DataWarehouse* parent_old_dw,
+                                            DataWarehouse* new_dw);
 
   protected:
 
@@ -78,6 +113,14 @@ namespace Uintah {
    
     void addComputesAndRequiresImplicit(Task* task,
                                         const MPMMaterial* mpm_matl);
+
+    void initializeGradientExplicit(const Patch* patch,
+                                    const MPMMaterial* mpm_matl,
+                                    DataWarehouse* new_dw);
+
+    void initializeGradientImplicit(const Patch* patch,
+                                    const MPMMaterial* mpm_matl,
+                                    DataWarehouse* new_dw);
 
     void computeDeformationGradientFromVelocity(const Matrix3& velGrad_old,
                                                 const Matrix3& velGrad_new,

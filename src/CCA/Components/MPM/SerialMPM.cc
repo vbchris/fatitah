@@ -127,6 +127,7 @@ SerialMPM::SerialMPM(const ProcessorGroup* myworld) :
   dataArchiver = 0;
   d_loadCurveIndex=0;
   d_switchCriteria = 0;
+  d_defGradComputer = 0;
 }
 
 SerialMPM::~SerialMPM()
@@ -149,7 +150,8 @@ SerialMPM::~SerialMPM()
   if(d_switchCriteria) {
     delete d_switchCriteria;
   }
-  
+
+  delete d_defGradComputer;
   
 }
 
@@ -280,6 +282,9 @@ void SerialMPM::problemSetup(const ProblemSpecP& prob_spec,
   if (d_switchCriteria) {
      d_switchCriteria->problemSetup(restart_mat_ps,restart_prob_spec,d_sharedState);
   }
+
+  // Create deformation gradient computer
+  d_defGradComputer = scinew DeformationGradientComputer(flags);
 }
 
 void SerialMPM::addMaterial(const ProblemSpecP& prob_spec,GridP&,
@@ -403,6 +408,11 @@ void SerialMPM::scheduleInitialize(const LevelP& level,
   int numMPM = d_sharedState->getNumMPMMatls();
   for(int m = 0; m < numMPM; m++){
     MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
+
+    // Add vel grad/def grad computes
+    d_defGradComputer->addInitialComputesAndRequires(t, mpm_matl, patches);
+
+    // Add constitutive model computes
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
     cm->addInitialComputesAndRequires(t, mpm_matl, patches);
   }
@@ -483,6 +493,11 @@ void SerialMPM::scheduleInitializeAddedMaterial(const LevelP& level,
   }
 
   MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(numMPMMatls-1);
+
+  // Add vel grad/def grad computes
+  d_defGradComputer->addInitialComputesAndRequires(t, mpm_matl, patches);
+
+  // Add cm computes
   ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
   cm->addInitialComputesAndRequires(t, mpm_matl, patches);
 
@@ -925,9 +940,6 @@ void SerialMPM::scheduleComputeStressTensor(SchedulerP& sched,
                            getLevel(patches)->getGrid()->numLevels()))
     return;
   
-  /* Create a task for computing the velocity gradient and the deformation gradient */
-  scheduleComputeDeformationGradient(sched, patches, matls);
-
   /* Create a task for computing the stress tensor */
   printSchedule(patches,cout_doing,"MPM::scheduleComputeStressTensor");
   
@@ -936,6 +948,11 @@ void SerialMPM::scheduleComputeStressTensor(SchedulerP& sched,
                         this, &SerialMPM::computeStressTensor);
   for(int m = 0; m < numMatls; m++){
     MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
+
+    // Add requires and computes for vel grad/def grad
+    d_defGradComputer->addComputesAndRequires(t, mpm_matl, patches);
+
+    // Add requires and computes for constitutive model
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
     cm->addComputesAndRequires(t, mpm_matl, patches);
     const MaterialSubset* matlset = mpm_matl->thisMaterial();
@@ -958,57 +975,6 @@ void SerialMPM::scheduleComputeStressTensor(SchedulerP& sched,
   if (flags->d_reductionVars->accStrainEnergy) 
     scheduleComputeAccStrainEnergy(sched, patches, matls);
 
-}
-
-//----------------------------------------------------------------------------------------
-/* Schedule computation of deformation gradient.  Should be identical for all materials */
-//----------------------------------------------------------------------------------------
-void SerialMPM::scheduleComputeDeformationGradient(SchedulerP& sched,
-                                                   const PatchSet* patches,
-                                                   const MaterialSet* matls) 
-{
-  if (!flags->doMPMOnLevel(getLevel(patches)->getIndex(), 
-                           getLevel(patches)->getGrid()->numLevels()))
-    return;
-    
-  printSchedule(patches,cout_doing,"MPM::scheduleComputeDeformationGradient");
-
-  Ghost::GhostType  gnone = Ghost::None;
-  Ghost::GhostType  gac   = Ghost::AroundCells;
-
-  Task* task = scinew Task("MPM::computeDeformationGradient",
-                           this, &SerialMPM::computeDeformationGradient);
-
-  int numMatls = d_sharedState->getNumMPMMatls();
-  for(int m = 0; m < numMatls; m++){
-    MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
-    const MaterialSubset* matlset = mpm_matl->thisMaterial();
-
-    // Requires (for explicit)
-    task->requires(Task::OldDW, lb->delTLabel);
-    task->requires(Task::OldDW, lb->pXLabel,                  matlset, gnone);
-    task->requires(Task::OldDW, lb->pMassLabel,               matlset, gnone);
-    task->requires(Task::OldDW, lb->pVolumeLabel,             matlset, gnone);
-    task->requires(Task::OldDW, lb->pVelocityLabel,           matlset, gnone);
-    task->requires(Task::OldDW, lb->pVelGradLabel,            matlset, gnone);
-    task->requires(Task::OldDW, lb->pDefGradLabel,            matlset, gnone);
-    task->requires(Task::NewDW, lb->gVelocityStarLabel,       matlset, gac, NGN);
-    if(!flag->d_doGridReset){
-      task->requires(Task::NewDW, lb->gDisplacementLabel,     matlset, gac, NGN);
-    }
-    task->requires(Task::OldDW, lb->pSizeLabel,               matlset, gnone);
-    if (flag->d_fracture) {
-      task->requires(Task::NewDW, lb->pgCodeLabel,            matlset, gnone);
-      task->requires(Task::NewDW, lb->GVelocityStarLabel,     matlset, gac, NGN);
-    }
-
-    // Requires (for implicit)
-
-    // Computes (for explicit)
-    task->computes(lb->pVelGradLabel_preReloc,            matlset);
-    task->computes(lb->pDefGradLabel_preReloc,            matlset);
-  }
-  sched->addTask(task, patches, matls);
 }
 
 void SerialMPM::scheduleUpdateErosionParameter(SchedulerP& sched,
@@ -1306,6 +1272,11 @@ void SerialMPM::scheduleAddNewParticles(SchedulerP& sched,
     MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
     mpm_matl->getParticleCreator()->allocateVariablesAddRequires(t, mpm_matl,
                                                                  patches);
+
+    // Deformation gradient related stuff
+    d_defGradComputer->addRequiresForConvert(t, mpm_matl);
+
+    // Constitutive model related stuff
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
     cm->allocateCMDataAddRequires(t,mpm_matl,patches,lb);
     cm->addRequiresDamageParameter(t, mpm_matl, patches);
@@ -1348,6 +1319,11 @@ void SerialMPM::scheduleConvertLocalizedParticles(SchedulerP& sched,
                                                                  patches);
     if (cout_convert.active())
       cout_convert << "   Done ParticleCreator::allocateVariablesAddRequires\n";
+
+    // Deformation gradient related stuff
+    d_defGradComputer->addRequiresForConvert(t, mpm_matl);
+
+    // Constitutive model related stuff
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
     if (cout_convert.active())
       cout_convert << "   cm = " << cm << endl;
@@ -1778,6 +1754,11 @@ void SerialMPM::scheduleRefine(const PatchSet* patches,
   int numMPM = d_sharedState->getNumMPMMatls();
   for(int m = 0; m < numMPM; m++){
     MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
+
+    // For deformation gradient computer
+    d_defGradComputer->addInitialComputesAndRequires(t, mpm_matl, patches);
+
+    // For constitutive models
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
     cm->addInitialComputesAndRequires(t, mpm_matl, patches);
   }
@@ -2061,6 +2042,10 @@ void SerialMPM::actuallyInitialize(const ProcessorGroup*,
 
       mpm_matl->createParticles(numParticles, cellNAPID, patch, new_dw);
 
+      // Initialize deformation gradient
+      d_defGradComputer->initializeGradient(patch, mpm_matl, new_dw);
+
+      // Initialize constitutive models
       mpm_matl->getConstitutiveModel()->initializeCMData(patch,mpm_matl,new_dw);
 
     }
@@ -2194,6 +2179,10 @@ void SerialMPM::actuallyInitializeAddedMaterial(const ProcessorGroup*,
     new_dw->unfinalize();
     mpm_matl->createParticles(numParticles, cellNAPID, patch, new_dw);
 
+    // Initialize deformation gradient of added particles
+    d_defGradComputer->initializeGradient(patch, mpm_matl, new_dw);
+
+    // Initialize constitutive models of added particles
     mpm_matl->getConstitutiveModel()->initializeCMData(patch, mpm_matl, new_dw);
     new_dw->refinalize();
   }
@@ -2531,6 +2520,10 @@ void SerialMPM::computeStressTensor(const ProcessorGroup*,
     if (cout_dbg.active())
       cout_dbg << " MPM_Mat = " << mpm_matl;
 
+    // Compute deformation gradient
+    d_defGradComputer->computeDeformationGradient(patches, mpm_matl, old_dw, new_dw);
+
+    // Compute stress
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
 
     if (cout_dbg.active())
@@ -2541,285 +2534,6 @@ void SerialMPM::computeStressTensor(const ProcessorGroup*,
 
     if (cout_dbg.active())
       cout_dbg << " Exit\n" ;
-
-  }
-}
-
-//-----------------------------------------------------------------------
-//  Actually compute deformation gradient
-//-----------------------------------------------------------------------
-void SerialMPM::computeDeformationGradient(const ProcessorGroup* pg,
-                                           const PatchSubset* patches,
-                                           const MaterialSubset* matlset,
-                                           DataWarehouse* old_dw,
-                                           DataWarehouse* new_dw)
-{
-  // The explicit code uses the velocity gradient to compute the
-  // deformation gradient.  The implicit code uses displacements.
-  if (flag->d_integrator == MPMFlags::Implicit) {
-    computeDefGradImplicit(pg, patches, matlset, old_dw, new_dw);
-  } else {
-    computeDefGradExplicit(pg, patches, matlset, old_dw, new_dw);
-  }
-}
-
-//------------------------------------------------------------------------
-// Compute deformation gradient for explicit simulations
-//------------------------------------------------------------------------
-void SerialMPM::computeDefGradExplicit(const ProcessorGroup* pg,
-                                       const PatchSubset* patches,
-                                       const MaterialSubset* matlset,
-                                       DataWarehouse* old_dw,
-                                       DataWarehouse* new_dw)
-{
-  // Constants
-  Ghost::GhostType gac = Ghost::AroundCells;
-
-  // Get delT
-  delt_vartype delT;
-  old_dw->get(delT, lb->delTLabel, getLevel(patches));
-
-  // Loop thru patches
-  for (int pp = 0; pp < patches->size(); pp++) {
-    const Patch* patch = patches->get(pp);
-    printTask(patches, patch, cout_doing, "Doing computeDeformationGradient");
-
-    int numMPMMatls=d_sharedState->getNumMPMMatls();
-    for(int m = 0; m < numMPMMatls; m++){
-
-      // Get particle info and patch info
-      MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial( m );
-      int dwi = mpm_matl->getDWIndex();
-      ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
-      Vector dx = patch->dCell();
-      double oodx[3] = {1./dx.x(), 1./dx.y(), 1./dx.z()};
-      double time = d_sharedState->getElapsedTime();
-
-      if (cout_dbg.active()){
-        cout_dbg << "computeDeformationGradient:: material # = " << m << " mpm_matl* = " << mpm_matl 
-                 << " dwi = " << dwi << " pset* = " << pset << " dx = " << dx << endl;
-      }
-
-      // Get initial density
-      double rho_orig = mpm_matl->getInitialDensity();
-
-      // Get Interpolator
-      ParticleInterpolator* interpolator = flag->d_interpolator->clone(patch);
-      vector<IntVector> ni(interpolator->size());
-      vector<Vector>    d_S(interpolator->size());
-      vector<double>    S(interpolator->size());
-
-      // Set up variables to store old particle and grid data 
-      // for vel grad and def grad calculation
-      constParticleVariable<Short27> pgCode;
-      constParticleVariable<double>  pMass;
-      constParticleVariable<long64>  pParticleID;
-      constParticleVariable<Point>   px;
-      constParticleVariable<Matrix3> pDefGrad_old, pVelGrad_old;
-      constParticleVariable<Matrix3> pSize;
-      constParticleVariable<Vector>  pVelocity;
-
-      // Set up variables to store new particle and grid data 
-      // for vel grad and def grad calculation
-      ParticleVariable<double>     pVolume_new;
-      ParticleVariable<Matrix3>    pDefGrad_new, pVelGrad_new;
-      constNCVariable<Vector>      gDisp;
-      constNCVariable<Vector>      gVelocity;
-      constNCVariable<Vector>      GVelocity;
-
-      // Get the old data
-      new_dw->get(gVelocity, lb->gVelocityStarLabel, dwi, patch, gac, NGN);
-      if (flag->d_fracture) {
-        new_dw->get(pgCode,    lb->pgCodeLabel, pset);
-        new_dw->get(GVelocity, lb->GVelocityStarLabel, dwi, patch, gac, NGN);
-      }
-      old_dw->get(px,                lb->pXLabel,                  pset);
-      old_dw->get(pMass,             lb->pMassLabel,               pset);
-      old_dw->get(pVelocity,         lb->pVelocityLabel,           pset);
-      old_dw->get(pDefGrad_old,      lb->pDeformationMeasureLabel, pset);
-      old_dw->get(pSize,             lb->pSizeLabel,               pset);
-      old_dw->get(pVelGrad_old,      lb->pVelGradLabel,            pset);
-
-      // Allocate new data
-      new_dw->allocateAndPut(pVolume_new, lb->pVolumeLabel_preReloc, pset);
-      new_dw->allocateAndPut(pDefGrad_new,
-                            lb->pDeformationMeasureLabel_preReloc, pset);
-      new_dw->allocateAndPut(pVelGrad_new, pVelGradLabel_preReloc,   pset);
-      
-      // Loop through particles
-      double J = 1.0;
-      for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
-        particleIndex idx = *iter;
-
-        // Initialize velocity gradient
-        Matrix3 velGrad_new(0.0);
-        Matrix3 defGradInc(0.0); // **WARNING** should be one and not zero
-  
-        if(!flag->d_axisymmetric){
-          // Get the node indices that surround the cell
-          interpolator->findCellAndShapeDerivatives(px[idx], ni, d_S, pSize[idx], pDefGrad_old[idx]);
-
-          // Fracture
-          if (flag->d_fracture) {
-            short pgFld[27];
-            for(int k=0; k<27; k++){
-              pgFld[k]=pgCode[idx][k];
-            }
-            // Special vel grad for fracture
-            computeVelocityGradient(velGrad_new, ni, d_S,oodx, pgFld, gVelocity, GVelocity);
-          } else {
-            // Standard 3d vel grad computation
-            computeVelocityGradient(velGrad_new, ni, d_S, oodx, gVelocity);
-          }
-        } else {  // axi-symmetric kinematics
-          // Get the node indices that surround the cell
-          interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                              pSize[idx],
-                                                              pDefGrad_old[idx]);
-          // x -> r, y -> z, z -> theta
-          computeAxiSymVelocityGradient(velGrad_new, ni, d_S, S, oodx, gVelocity, px[idx]);
-        } // endif (!flag->d_axisymmetric)
-
-        // Update velocity gradient
-        pVelGrad_new[idx] = velGrad_new;
-        //if (isnan(velGrad_new.Norm())) {
-        //  cerr << "particle = " << idx << " velGrad = " << velGrad_new << endl;
-        //  throw InvalidValue("**ERROR**: Nan in velocity gradient value", __FILE__, __LINE__);
-        //}
-
-        // Improve upon first order estimate of deformation gradient
-        bool d_taylorSeriesForDefGrad = true;
-        int d_numTaylorTerms = 10;
-        int num_scs = 1;
-        if (d_taylorSeriesForDefGrad) {
-          // Use Taylor series expansion
-          // Compute mid point velocity gradient
-          Matrix3 Amat = (pVelGrad_old[idx] + pVelGrad_new[idx])*(0.5*delT);
-          defGradInc = Amat.Exponential(d_numTaylorTerms);
-          pDefGrad_new[idx] = pDefGradInc*pDefGrad_old[idx];
-        } else {
-          Matrix3 F = pDefGrad_old[idx];
-          double Lnorm_dt = velGrad_new.Norm()*delT;
-          num_scs = max(1,2*((int) Lnorm_dt));
-          if(num_scs > 1000){
-            cout << "NUM_SCS = " << num_scs << endl;
-          }
-          double dtsc = delT/(double (num_scs));
-          Matrix3 OP_tensorL_DT = Identity + velGrad_new*dtsc;
-          for(int n=0;n<num_scs;n++){
-            F = OP_tensorL_DT*F;
-            // if(num_scs >1000){
-            //   cerr << "n = " << n << endl;
-            //   cerr << "F = " << F << endl;
-            //   cerr << "J = " << F.Determinant() << endl << endl;
-            // }
-          }
-          pDefGrad_new[idx] = F;
-          defGradInc = pDefGrad_new[idx]*pDefGrad_old[idx].Inverse();
-        }
-
-        // Check 1: Look at Jacobian
-        J = pDefGrad_new[idx].Determinant();
-        if (!(J > 0.0)) {
-          constParticleVariable<long64> pParticleID;
-          old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-          cerr << "matl = "  << mpm_matl << " dwi = " << dwi << " particle = " << idx
-               << " particleID = " << pParticleID[idx] << endl;
-          cerr << "velGrad = " << velGrad_new << endl;
-          cerr << "F_old = " << pDefGrad[idx]     << endl;
-          cerr << "F_inc = " << pDefGradInc       << endl;
-          cerr << "F_new = " << pDefGrad_new[idx] << endl;
-          cerr << "J = "     << J                 << endl;
-          cerr << "NUM_SCS = " << num_scs << endl;
-          cerr << "**ERROR** Negative Jacobian of deformation gradient in material # ="
-               << m << << " and particle " << pParticleID[idx]  << " which has mass "
-               << pMass[idx] << endl;
-          throw InvalidValue("**ERROR**:UCNH", __FILE__, __LINE__);
-        }
-      } // End of loop over particles
-
-      // The following is used only for pressure stabilization
-      CCVariable<double> J_CC;
-      new_dw->allocateTemporary(J_CC,       patch);
-      J_CC.initialize(0.);
-      if(flag->d_doPressureStabilization) {
-        CCVariable<double> vol_0_CC;
-        CCVariable<double> vol_CC;
-        new_dw->allocateTemporary(vol_0_CC, patch);
-        new_dw->allocateTemporary(vol_CC,   patch);
-
-        vol_0_CC.initialize(0.);
-        vol_CC.initialize(0.);
-  
-        // First loop thru particles
-        for(ParticleSubset::iterator iter = pset->begin();
-            iter != pset->end(); iter++){
-          particleIndex idx = *iter;
-
-          // get the volumetric part of the deformation
-          J = pDefGrad_new[idx].Determinant();
-
-          // Get the deformed volume
-          pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
-
-          IntVector cell_index;
-          patch->findCell(px[idx],cell_index);
-
-          vol_CC[cell_index]  +=pVolume_new[idx];
-          vol_0_CC[cell_index]+=pMass[idx]/rho_orig;
-        }
-
-        // Compute cell centered J
-        for(CellIterator iter=patch->getCellIterator(); !iter.done();iter++){
-          IntVector c = *iter;
-          J_CC[c]=vol_CC[c]/vol_0_CC[c];
-        }
-
-        // Second loop thru particles
-        for(ParticleSubset::iterator iter = pset->begin();
-            iter != pset->end(); iter++){
-          particleIndex idx = *iter;
-
-          IntVector cell_index;
-          patch->findCell(px[idx],cell_index);
-
-          // get the original volumetric part of the deformation
-          J = pDefGrad_new[idx].Determinant();
-
-          // Change F such that the determinant is equal to the average for
-          // the cell
-          pDefGrad_new[idx]*=cbrt(J_CC[cell_index]/J);
-          defGradInc = pDefGrad_new[idx]*pDefGrad_old[idx].Inverse();
-
-          // Update the deformed volume
-          J = pdefGrad_new[idx].Determinant();
-          pVolume_new[idx]= (pMass[idx]/rho_orig)*J;
-
-          // Check 1: Look at Jacobian
-          if (!(J > 0.0)) {
-            cerr << "after pressure stab "          << endl;
-            cerr << "matl = "  << mpm_matl          << endl;
-            cerr << "F_old = " << pDefGrad[idx]     << endl;
-            cerr << "F_inc = " << pDefGradInc       << endl;
-            cerr << "F_new = " << pDefGrad_new[idx] << endl;
-            cerr << "J = "     << J                 << endl;
-            constParticleVariable<long64> pParticleID;
-            old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-            cerr << "ParticleID = " << pParticleID[idx] << endl;
-            cerr << "**ERROR** Negative Jacobian of deformation gradient"
-                 << " in particle " << pParticleID[idx]  << " which has mass "
-                 << pMass[idx] << endl;
-            throw InvalidValue("**ERROR**:Negative Jacobian in UCNH",
-                                __FILE__, __LINE__);
-          }
-        }
-
-      } //end of pressureStabilization loop  at the patch level
-
-    }
-
-    if (cout_dbg.active())
-      cout_dbg <<"Done computeDeformationGradient on patch "  << patch->getID() << "\t MPM"<< endl;
 
   }
 }
@@ -3821,8 +3535,11 @@ void SerialMPM::addNewParticles(const ProcessorGroup*,
         particle_creator->allocateVariablesAdd(new_dw,addset,newState,
                                                delset,old_dw);
         
+
+        // Add nul-matl deformation gradeint etc.
+        d_defGradComputer->copyAndDeleteForConvert(new_dw, addset, newState, delset, old_dw);
+
         // Need to do the constitutive models particle variables;
-        
         null_matl->getConstitutiveModel()->allocateCMDataAdd(new_dw,addset,
                                                              newState,delset,
                                                              old_dw);
@@ -3965,6 +3682,10 @@ void SerialMPM::convertLocalizedParticles(const ProcessorGroup*,
         particle_creator->allocateVariablesAdd(new_dw, addset, newState,
                                                delset, old_dw);
         
+        // Copy gradient data 
+        d_defGradComputer->copyAndDeleteForConvert(new_dw, addset, newState, delset, old_dw);
+        
+        // Copy constitutive model data 
         conv_matl->getConstitutiveModel()->allocateCMDataAdd(new_dw, addset,
                                                              newState, delset,
                                                              old_dw);
@@ -5295,6 +5016,10 @@ SerialMPM::refine(const ProcessorGroup*,
         }
         new_dw->allocateAndPut(psize,          lb->pSizeLabel,          pset);
 
+        // Init deformation gradient
+        d_defGradComputer->initializeGradient(patch, mpm_matl, new_dw);
+
+        // Init constitutive model
         mpm_matl->getConstitutiveModel()->initializeCMData(patch,
                                                            mpm_matl,new_dw);
 #if 0
