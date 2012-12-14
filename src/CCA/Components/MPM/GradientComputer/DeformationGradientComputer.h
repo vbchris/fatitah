@@ -157,8 +157,9 @@ namespace Uintah {
     int NGP;
     int NGN;
     SimulationState* d_sharedState;
-    static Matrix3 Identity;
-    static Matrix3 Zero;
+
+    static const Matrix3 Identity;
+    static const Matrix3 Zero;
   };
 
 } // End namespace Uintah

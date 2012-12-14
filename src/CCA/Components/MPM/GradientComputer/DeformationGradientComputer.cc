@@ -15,6 +15,9 @@
 
 using namespace Uintah;
 
+const Matrix3 DeformationGradientComputer::Identity(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+const Matrix3 DeformationGradientComputer::Zero(0.0);
+
 DeformationGradientComputer::DeformationGradientComputer(MPMFlags* Mflag)
 {
   lb = scinew MPMLabel();
@@ -24,8 +27,8 @@ DeformationGradientComputer::DeformationGradientComputer(MPMFlags* Mflag)
   } else{ 
     NGN=2;
   }
-  Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
-  Zero = Matrix3(0.0);
+  //Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+  //Zero = Matrix3(0.0);
 }
 
 DeformationGradientComputer::DeformationGradientComputer(const DeformationGradientComputer* dg)
@@ -35,8 +38,8 @@ DeformationGradientComputer::DeformationGradientComputer(const DeformationGradie
   NGN = dg->NGN;
   NGP = dg->NGP;
   d_sharedState = dg->d_sharedState;
-  Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
-  Zero = Matrix3(0.0);
+  //Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+  //Zero = Matrix3(0.0);
 }
 
 DeformationGradientComputer* DeformationGradientComputer::clone()
