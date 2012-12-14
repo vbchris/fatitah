@@ -25,9 +25,9 @@ namespace Uintah {
     VelocityGradientComputer* clone();
 
     // Actually compute velocity gradient
-    void computeVelGrad(const ParticleInterpolator* interpolator,
+    void computeVelGrad(ParticleInterpolator* interpolator,
                         const double* oodx,
-                        const Short27& pgCode,
+                        const short pgFld[],
                         const Point& px,
                         const Matrix3& pSize,
                         const Matrix3& pDefGrad_old,

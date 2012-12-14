@@ -23,7 +23,7 @@ DisplacementGradientComputer::~DisplacementGradientComputer()
 
 // Actually compute displacement gradient
 void 
-DisplacementGradientComputer::computeDispGrad(const ParticleInterpolator* interp,
+DisplacementGradientComputer::computeDispGrad(ParticleInterpolator* interp,
                                               const double* oodx,
                                               const Point& px,
                                               const Matrix3& psize,

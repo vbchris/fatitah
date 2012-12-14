@@ -1,4 +1,5 @@
 #include <CCA/Components/MPM/GradientComputer/VelocityGradientComputer.h>
+#include <Core/Exceptions/InvalidValue.h>
 
 using namespace Uintah;
 
@@ -23,9 +24,9 @@ VelocityGradientComputer::~VelocityGradientComputer()
 
 // Actually compute velocity gradient
 void 
-VelocityGradientComputer::computeVelGrad(const ParticleInterpolator* interpolator,
+VelocityGradientComputer::computeVelGrad(ParticleInterpolator* interpolator,
                                          const double* oodx,
-                                         const Short27& pgCode,
+                                         const short pgFld[],
                                          const Point& px,
                                          const Matrix3& pSize,
                                          const Matrix3& pDefGrad_old,
@@ -42,10 +43,6 @@ VelocityGradientComputer::computeVelGrad(const ParticleInterpolator* interpolato
 
     // Fracture
     if (flag->d_fracture) {
-      short pgFld[27];
-      for(int k=0; k<27; k++){
-        pgFld[k]=pgCode[k];
-      }
       // Special vel grad for fracture
       computeVelocityGradient(velGrad_new, ni, d_S, oodx, pgFld, gVelocity, GVelocity);
     } else {
@@ -65,7 +62,7 @@ VelocityGradientComputer::computeVelGrad(const ParticleInterpolator* interpolato
   } // endif (!flag->d_axisymmetric)
 
   if (isnan(velGrad_new.Norm())) {
-    cerr << " velGrad = " << velGrad_new << endl;
+    std::cerr << " velGrad = " << velGrad_new << endl;
     throw InvalidValue("**ERROR**: Nan in velocity gradient value", __FILE__, __LINE__);
   }
  

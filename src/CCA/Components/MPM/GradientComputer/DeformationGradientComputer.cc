@@ -1,6 +1,8 @@
 #include <CCA/Components/MPM/GradientComputer/DeformationGradientComputer.h>
 #include <CCA/Components/MPM/GradientComputer/VelocityGradientComputer.h>
 #include <CCA/Components/MPM/GradientComputer/DisplacementGradientComputer.h>
+#include <Core/Grid/Task.h>
+#include <Core/Grid/Patch.h>
 #include <CCA/Ports/DataWarehouseP.h>
 #include <Core/Grid/Variables/VarTypes.h>
 #include <Core/Grid/Variables/NCVariable.h>
@@ -9,7 +11,6 @@
 #include <Core/Disclosure/TypeDescription.h>
 #include <Core/Exceptions/InvalidValue.h>
 #include <Core/Malloc/Allocator.h>
-#include <Core/Util/Endian.h>
 #include <iostream>
 
 using namespace Uintah;
@@ -203,7 +204,7 @@ void DeformationGradientComputer::copyAndDeleteForConvert(DataWarehouse* new_dw,
   // Copy the data common to all constitutive models from the particle to be 
   // deleted to the particle to be added. 
   if(flag->d_integrator != MPMFlags::Implicit){
-    ParticleVariable<Matrix3>     o_pVelGrad;
+    constParticleVariable<Matrix3>     o_pVelGrad;
     ParticleVariable<Matrix3>     pVelGrad;
     new_dw->get(o_pVelGrad, lb->pVelGradLabel_preReloc, delset);
     new_dw->allocateTemporary(pVelGrad,   addset);
@@ -214,8 +215,8 @@ void DeformationGradientComputer::copyAndDeleteForConvert(DataWarehouse* new_dw,
     (*newState)[lb->pVelGradLabel]  = pVelGrad.clone();
   }
 
-  ParticleVariable<double>      o_pVolume;
-  ParticleVariable<Matrix3>     o_pDispGrad, o_pDefGrad;
+  constParticleVariable<double>      o_pVolume;
+  constParticleVariable<Matrix3>     o_pDispGrad, o_pDefGrad;
   new_dw->get(o_pVolume,   lb->pVolumeDeformedLabel,          delset);
   new_dw->get(o_pDefGrad,  lb->pDefGradLabel_preReloc,        delset);
   new_dw->get(o_pDispGrad, lb->pDispGradLabel_preReloc,       delset);
@@ -431,7 +432,11 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
       // Compute velocity gradient
       VelocityGradientComputer gradComp(flag);
       Matrix3 velGrad_new(0.0);
-      gradComp.computeVelGrad(interpolator, oodx, pgCode[idx], px[idx], pSize[idx], pDefGrad_old[idx], 
+      short pgFld[27];
+      if (flag->d_fracture) {
+        for(int k=0; k<27; k++) pgFld[k]=pgCode[idx][k];
+      }
+      gradComp.computeVelGrad(interpolator, oodx, pgFld, px[idx], pSize[idx], pDefGrad_old[idx], 
                               gVelocity, GVelocity, velGrad_new);
 
       // Compute the deformation gradient from velocity

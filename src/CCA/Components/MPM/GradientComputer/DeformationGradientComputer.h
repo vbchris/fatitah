@@ -1,13 +1,12 @@
 #ifndef __DEFORMATION_GRADIENT_COMPUTER_H__
 #define __DEFORMATION_GRADIENT_COMPUTER_H__
 
-#include <Core/Grid/Task.h>
+#include <Core/Grid/Variables/ComputeSet.h>
 #include <Core/Grid/Patch.h>
 #include <Core/Grid/Level.h>
 #include <Core/Grid/Variables/VarLabel.h>
 #include <Core/Grid/Variables/ParticleSubset.h>
 #include <Core/Grid/Variables/ParticleVariableBase.h>
-#include <Core/Grid/Variables/ComputeSet.h>
 #include <Core/Grid/SimulationStateP.h>
 #include <Core/Labels/MPMLabel.h>
 #include <Core/Math/Matrix3.h>
@@ -20,6 +19,9 @@
 #include <vector>
 
 namespace Uintah {
+
+  class Task;
+  class Patch;
 
   //////////////////////////////////////////////////////////////////////////
   /*!

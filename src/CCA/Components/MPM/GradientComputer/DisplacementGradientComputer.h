@@ -25,7 +25,7 @@ namespace Uintah {
     DisplacementGradientComputer* clone();
 
     // Actually compute displacement gradient
-    void computeDispGrad(const ParticleInterpolator* interp,
+    void computeDispGrad(ParticleInterpolator* interp,
                          const double* oodx,
                          const Point& px,
                          const Matrix3& psize,
