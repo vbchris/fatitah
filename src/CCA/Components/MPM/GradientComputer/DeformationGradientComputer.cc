@@ -18,7 +18,7 @@ using namespace Uintah;
 const Matrix3 DeformationGradientComputer::Identity(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
 const Matrix3 DeformationGradientComputer::Zero(0.0);
 
-DeformationGradientComputer::DeformationGradientComputer(MPMFlags* Mflag)
+DeformationGradientComputer::DeformationGradientComputer(MPMFlags* Mflag, SimulationStateP& ss)
 {
   lb = scinew MPMLabel();
   flag = Mflag;
@@ -27,8 +27,7 @@ DeformationGradientComputer::DeformationGradientComputer(MPMFlags* Mflag)
   } else{ 
     NGN=2;
   }
-  //Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
-  //Zero = Matrix3(0.0);
+  d_sharedState = ss;
 }
 
 DeformationGradientComputer::DeformationGradientComputer(const DeformationGradientComputer* dg)
@@ -38,8 +37,6 @@ DeformationGradientComputer::DeformationGradientComputer(const DeformationGradie
   NGN = dg->NGN;
   NGP = dg->NGP;
   d_sharedState = dg->d_sharedState;
-  //Identity = Matrix3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
-  //Zero = Matrix3(0.0);
 }
 
 DeformationGradientComputer* DeformationGradientComputer::clone()
@@ -98,7 +95,7 @@ DeformationGradientComputer::addComputesAndRequires(Task* task,
     task->requires(Task::ParentOldDW, lb->pDefGradLabel,     matlset, gnone);
 
     task->computes(lb->pDefGradLabel_preReloc,     matlset);
-    task->computes(lb->pVolumeDeformedLabel,       matlset);
+    task->computes(lb->pVolumeLabel_preReloc,       matlset);
     if (flag->d_doGridReset) {
       task->requires(Task::OldDW, lb->dispNewLabel,       matlset, gac,1);
     } else {
@@ -220,7 +217,7 @@ void DeformationGradientComputer::copyAndDeleteForConvert(DataWarehouse* new_dw,
 
   constParticleVariable<double>      o_pVolume;
   constParticleVariable<Matrix3>     o_pDispGrad, o_pDefGrad;
-  new_dw->get(o_pVolume,   lb->pVolumeDeformedLabel,          delset);
+  new_dw->get(o_pVolume,   lb->pVolumeLabel_preReloc,          delset);
   new_dw->get(o_pDefGrad,  lb->pDefGradLabel_preReloc,        delset);
   new_dw->get(o_pDispGrad, lb->pDispGradLabel_preReloc,       delset);
 
@@ -296,10 +293,10 @@ DeformationGradientComputer::initializeGradientImplicit(const Patch* patch,
 //-----------------------------------------------------------------------
 void 
 DeformationGradientComputer::computeDeformationGradient(const PatchSubset* patches,
-                                                        const MPMMaterial* mpm_matl,
                                                         DataWarehouse* old_dw,
                                                         DataWarehouse* new_dw)
 {
+  //std::cout << "Compute def grad .. 1 .." << std::endl; 
   // Get delT
   delt_vartype delT;
   old_dw->get(delT, lb->delTLabel, getLevel(patches));
@@ -329,14 +326,17 @@ DeformationGradientComputer::computeDeformationGradient(const PatchSubset* patch
     for (int pp = 0; pp < patches->size(); pp++) {
       const Patch* patch = patches->get(pp);
 
+      //std::cout << "Compute def grad .. 1 .. pp = " << pp << " patch = " << patch << std::endl; 
       int numMPMMatls=d_sharedState->getNumMPMMatls();
       for(int m = 0; m < numMPMMatls; m++){
 
         // Get particle info and patch info
         MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial( m );
+        //std::cout << "Compute def grad .. 2 .. pp = " << pp << " m = " << m << " mpm_matl = " << mpm_matl << std::endl; 
 
         // Compute deformation gradient
         computeDeformationGradientExplicit(patch, mpm_matl, delT, old_dw, new_dw);
+        //std::cout << "Compute def grad .. 3 .. complete" << std::endl; 
       }
     }
 
@@ -374,6 +374,8 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
   ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
   Vector dx = patch->dCell();
   double oodx[3] = {1./dx.x(), 1./dx.y(), 1./dx.z()};
+
+  //std::cout << "One . patch = " << patch << " mpm_matl = " << mpm_matl << std::endl;
 
   // Get initial density
   double rho_orig = mpm_matl->getInitialDensity();
@@ -415,13 +417,13 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
   old_dw->get(pVelGrad_old,      lb->pVelGradLabel,            pset);
 
   // Allocate new data
-  new_dw->allocateAndPut(pVolume_new,   lb->pVolumeLabel_preReloc, pset);
+  //std::cout << "Two . Before allocate and put" << std::endl;
   new_dw->allocateAndPut(pDefGrad_new,  lb->pDefGradLabel_preReloc,  pset);
   new_dw->allocateAndPut(pVelGrad_new,  lb->pVelGradLabel_preReloc,  pset);
   new_dw->allocateAndPut(pDispGrad_new, lb->pDispGradLabel_preReloc,  pset);
+  new_dw->allocateAndPut(pVolume_new,   lb->pVolumeLabel_preReloc, pset);
+  //std::cout << "Three . After allocate and put" << std::endl;
       
-  // Create VelocityGradientComputer
-
   // Loop through particles
   double J = 1.0;
   for(ParticleSubset::iterator iter = pset->begin(); iter != pset->end(); iter++){
@@ -441,16 +443,20 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
       }
       gradComp.computeVelGrad(interpolator, oodx, pgFld, px[idx], pSize[idx], pDefGrad_old[idx], 
                               gVelocity, GVelocity, velGrad_new);
+      //std::cout << "Six . After compute vel grad." << std::endl;
 
       // Compute the deformation gradient from velocity
       computeDeformationGradientFromVelocity(pVelGrad_old[idx], velGrad_new, pDefGrad_old[idx], delT, defGrad_new,
                                              defGrad_inc);
+
+      //std::cout << "Seven . After compute def grad." << std::endl;
       // Update velocity gradient
       pVelGrad_new[idx] = velGrad_new;
 
       // Update displacement gradient
       pDispGrad_new[idx] = velGrad_new*delT;
 
+      //std::cout << "Eight . After compute disp grad." << std::endl;
     } else {
       // Compute displacement gradient
       DisplacementGradientComputer gradComp(flag);
@@ -471,6 +477,7 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
     // Update deformation gradient
     pDefGrad_new[idx] = defGrad_new;
 
+    //std::cout << "Nine . Before jacobian check" << std::endl;
     // Check 1: Look at Jacobian
     double J = defGrad_new.Determinant();
     if (!(J > 0.0)) {
@@ -492,6 +499,7 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
     //  Compute updated volume
     pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
 
+    //std::cout << "Eight . Particle " << idx << " : complete. " << std::endl;
   } // End of loop over particles
 
   // The following is used only for pressure stabilization
@@ -607,7 +615,7 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
   old_dw->get(pDefGrad_old, lb->pDefGradLabel, pset);
 
   // Allocate data to new data warehouse
-  new_dw->allocateAndPut(pVolume_new, lb->pVolumeDeformedLabel,  pset);
+  new_dw->allocateAndPut(pVolume_new, lb->pVolumeLabel_preReloc,  pset);
   new_dw->allocateTemporary(pDefGrad_new, pset);
 
   // Rigid material
@@ -721,7 +729,7 @@ DeformationGradientComputer::computeDeformationGradientImplicit(const Patch* pat
   parent_old_dw->get(pDefGrad_old, lb->pDefGradLabel, pset);
 
   // Allocate data to new data warehouse
-  new_dw->allocateAndPut(pVolume_new, lb->pVolumeDeformedLabel,  pset);
+  new_dw->allocateAndPut(pVolume_new, lb->pVolumeLabel_preReloc,  pset);
   new_dw->allocateTemporary(pDefGrad_new, pset);
 
   // Rigid material

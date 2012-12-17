@@ -34,7 +34,7 @@ namespace Uintah {
 
   public:
          
-    DeformationGradientComputer(MPMFlags* MFlag);
+    DeformationGradientComputer(MPMFlags* MFlag, SimulationStateP& ss);
     DeformationGradientComputer(const DeformationGradientComputer* gc);
     virtual ~DeformationGradientComputer();
 
@@ -71,7 +71,6 @@ namespace Uintah {
                             DataWarehouse* new_dw);
 
     void computeDeformationGradient(const PatchSubset* patches,
-                                    const MPMMaterial* mpm_matl,
                                     DataWarehouse* old_dw,
                                     DataWarehouse* new_dw);
 
@@ -156,7 +155,7 @@ namespace Uintah {
     MPMFlags* flag;
     int NGP;
     int NGN;
-    SimulationState* d_sharedState;
+    SimulationStateP d_sharedState;
 
     static const Matrix3 Identity;
     static const Matrix3 Zero;

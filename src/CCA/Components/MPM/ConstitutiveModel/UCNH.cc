@@ -1409,7 +1409,8 @@ void UCNH::computeStressTensor(const PatchSubset* patches,
     // Universal Allocations
     new_dw->allocateAndPut(bElBar_new,  bElBarLabel_preReloc,      pset);
     new_dw->allocateAndPut(pStress,     lb->pStressLabel_preReloc, pset);
-    new_dw->allocateAndPut(pVolume_new, lb->pVolumeLabel_preReloc, pset);
+    new_dw->getModifiable(pVolume_new, lb->pVolumeLabel_preReloc, pset);
+    //new_dw->allocateAndPut(pVolume_new, lb->pVolumeLabel_preReloc, pset);
     new_dw->allocateAndPut(pdTdt,       lb->pdTdtLabel_preReloc,   pset);
     new_dw->allocateAndPut(p_q,         lb->p_qLabel_preReloc,     pset);
     new_dw->allocateAndPut(pDeformRate, pDeformRateLabel_preReloc, pset);

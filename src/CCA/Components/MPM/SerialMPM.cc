@@ -284,7 +284,7 @@ void SerialMPM::problemSetup(const ProblemSpecP& prob_spec,
   }
 
   // Create deformation gradient computer
-  d_defGradComputer = scinew DeformationGradientComputer(flags);
+  d_defGradComputer = scinew DeformationGradientComputer(flags, d_sharedState);
 }
 
 void SerialMPM::addMaterial(const ProblemSpecP& prob_spec,GridP&,
@@ -940,6 +940,9 @@ void SerialMPM::scheduleComputeStressTensor(SchedulerP& sched,
                            getLevel(patches)->getGrid()->numLevels()))
     return;
   
+  // Schedule compute of the deformation gradient
+  scheduleComputeDeformationGradient(sched, patches, matls);
+
   /* Create a task for computing the stress tensor */
   printSchedule(patches,cout_doing,"MPM::scheduleComputeStressTensor");
   
@@ -948,9 +951,6 @@ void SerialMPM::scheduleComputeStressTensor(SchedulerP& sched,
                         this, &SerialMPM::computeStressTensor);
   for(int m = 0; m < numMatls; m++){
     MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
-
-    // Add requires and computes for vel grad/def grad
-    d_defGradComputer->addComputesAndRequires(t, mpm_matl, patches);
 
     // Add requires and computes for constitutive model
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
@@ -975,6 +975,30 @@ void SerialMPM::scheduleComputeStressTensor(SchedulerP& sched,
   if (flags->d_reductionVars->accStrainEnergy) 
     scheduleComputeAccStrainEnergy(sched, patches, matls);
 
+}
+
+void SerialMPM::scheduleComputeDeformationGradient(SchedulerP& sched,
+                                                   const PatchSet* patches,
+                                                   const MaterialSet* matls)
+{
+  if (!flags->doMPMOnLevel(getLevel(patches)->getIndex(), 
+                           getLevel(patches)->getGrid()->numLevels()))
+    return;
+  
+  /* Create a task for computing the stress tensor */
+  printSchedule(patches,cout_doing,"MPM::scheduleComputeDeformationGradient");
+  
+  int numMatls = d_sharedState->getNumMPMMatls();
+  Task* t = scinew Task("MPM::computeDeformationGradient",
+                        this, &SerialMPM::computeDeformationGradient);
+  for(int m = 0; m < numMatls; m++){
+    MPMMaterial* mpm_matl = d_sharedState->getMPMMaterial(m);
+
+    // Add requires and computes for vel grad/def grad
+    d_defGradComputer->addComputesAndRequires(t, mpm_matl, patches);
+  }
+
+  sched->addTask(t, patches, matls);
 }
 
 void SerialMPM::scheduleUpdateErosionParameter(SchedulerP& sched,
@@ -2520,9 +2544,6 @@ void SerialMPM::computeStressTensor(const ProcessorGroup*,
     if (cout_dbg.active())
       cout_dbg << " MPM_Mat = " << mpm_matl;
 
-    // Compute deformation gradient
-    d_defGradComputer->computeDeformationGradient(patches, mpm_matl, old_dw, new_dw);
-
     // Compute stress
     ConstitutiveModel* cm = mpm_matl->getConstitutiveModel();
 
@@ -2536,6 +2557,27 @@ void SerialMPM::computeStressTensor(const ProcessorGroup*,
       cout_dbg << " Exit\n" ;
 
   }
+}
+
+void SerialMPM::computeDeformationGradient(const ProcessorGroup*,
+                                           const PatchSubset* patches,
+                                           const MaterialSubset* ,
+                                           DataWarehouse* old_dw,
+                                           DataWarehouse* new_dw)
+{
+
+  printTask(patches, patches->get(0),cout_doing,
+            "Doing computeDeformationGradient");
+
+  if (cout_dbg.active()) {
+      cout_dbg << " Patch = " << (patches->get(0))->getID();
+  }
+
+  // Compute deformation gradient
+  d_defGradComputer->computeDeformationGradient(patches, old_dw, new_dw);
+
+  if (cout_dbg.active()) cout_dbg << " Exit\n" ;
+
 }
 
 void SerialMPM::updateErosionParameter(const ProcessorGroup*,

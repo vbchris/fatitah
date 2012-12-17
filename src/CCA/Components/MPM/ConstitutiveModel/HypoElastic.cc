@@ -357,7 +357,8 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
     }
 
     new_dw->allocateAndPut(pstress_new,     lb->pStressLabel_preReloc,   pset);
-    new_dw->allocateAndPut(pvolume_new,     lb->pVolumeLabel_preReloc,   pset);
+    new_dw->getModifiable(pvolume_new,     lb->pVolumeLabel_preReloc,   pset);
+    //new_dw->allocateAndPut(pvolume_new,     lb->pVolumeLabel_preReloc,   pset);
     new_dw->allocateAndPut(pdTdt,           lb->pdTdtLabel_preReloc,     pset);
     new_dw->allocateAndPut(p_q,             lb->p_qLabel_preReloc,       pset);
     new_dw->allocateAndPut(deformationGradient_new,
