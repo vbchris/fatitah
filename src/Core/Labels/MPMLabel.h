@@ -70,8 +70,8 @@ using std::vector;
       const VarLabel* pDefGradLabel_preReloc;
 
       //PermanentParticleState
-      const VarLabel* pDeformationMeasureLabel;
-      const VarLabel* pDeformationMeasureLabel_preReloc;
+      //const VarLabel* pDeformationMeasureLabel;
+      //const VarLabel* pDeformationMeasureLabel_preReloc;
       const VarLabel* pStressLabel;
       const VarLabel* pStressLabel_preReloc;
       const VarLabel* pVolumeLabel;

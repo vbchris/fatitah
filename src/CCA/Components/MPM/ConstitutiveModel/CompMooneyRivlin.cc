@@ -207,11 +207,11 @@ void CompMooneyRivlin::computeStressTensor(const PatchSubset* patches,
     // Create array for the particle position
     ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
     constParticleVariable<Point> px;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new;
     constParticleVariable<Matrix3> deformationGradient;
     ParticleVariable<Matrix3> pstress;
     constParticleVariable<double> pmass;
-    ParticleVariable<double> pvolume;
+    constParticleVariable<double> pvolume;
     constParticleVariable<Vector> pvelocity;
     constParticleVariable<Matrix3> psize;
     ParticleVariable<double> pdTdt,p_q;
@@ -224,17 +224,16 @@ void CompMooneyRivlin::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pmass,               lb->pMassLabel,               pset);
     old_dw->get(psize,               lb->pSizeLabel,               pset);
     old_dw->get(pvelocity,           lb->pVelocityLabel,           pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
+    new_dw->get(pvolume,             lb->pVolumeLabel_preReloc,    pset);
+    new_dw->get(deformationGradient_new, lb->pDefGradLabel_preReloc, pset);
 
     new_dw->allocateAndPut(pstress,  lb->pStressLabel_preReloc,    pset);
-    new_dw->allocateAndPut(pvolume,  lb->pVolumeLabel_preReloc,    pset);
     new_dw->allocateAndPut(pdTdt,    lb->pdTdtLabel_preReloc,      pset);
     new_dw->allocateAndPut(p_q,      lb->p_qLabel_preReloc,        pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                                  lb->pDeformationMeasureLabel_preReloc, pset);
 
-    ParticleVariable<Matrix3> velGrad;
-    new_dw->allocateTemporary(velGrad, pset);
+    constParticleVariable<Matrix3> velGrad;
+    new_dw->get(velGrad, lb->pVelGradLabel_preReloc, pset);
 
     double C1 = d_initialData.C1;
     double C2 = d_initialData.C2;
@@ -244,98 +243,11 @@ void CompMooneyRivlin::computeStressTensor(const PatchSubset* patches,
 
     double rho_orig = matl->getInitialDensity();
 
-    // Get the deformation gradients first.  This is done differently
-    // depending on whether or not the grid is reset.  (Should it be??? -JG)
-    if(flag->d_doGridReset){
-      constNCVariable<Vector> gvelocity;
-      new_dw->get(gvelocity, lb->gVelocityStarLabel,dwi,patch,gac,NGN);
-      for(ParticleSubset::iterator iter=pset->begin();iter!=pset->end();iter++){
-        particleIndex idx = *iter;
-
-        Matrix3 tensorL(0.0);
-        if(!flag->d_axisymmetric){
-         // Get the node indices that surround the cell
-         interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],
-                                                   deformationGradient[idx]);
-
-         computeVelocityGradient(tensorL,ni,d_S, oodx, gvelocity);
-        } else {  // axi-symmetric kinematics
-         // Get the node indices that surround the cell
-         interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                          psize[idx],deformationGradient[idx]);
-         // x -> r, y -> z, z -> theta
-         computeAxiSymVelocityGradient(tensorL,ni,d_S,S,oodx,gvelocity,px[idx]);
-        }
-        velGrad[idx]=tensorL;
-
-        deformationGradient_new[idx]=(tensorL*delT+Identity)
-                                    *deformationGradient[idx];
-      }
-
-    }
-    else if(!flag->d_doGridReset){
-      constNCVariable<Vector> gdisplacement;
-      new_dw->get(gdisplacement, lb->gDisplacementLabel,dwi,patch,gac,NGN);
-      computeDeformationGradientFromDisplacement(gdisplacement,
-                                                 pset, px, psize,
-                                                 deformationGradient_new,
-                                                 deformationGradient,
-                                                 dx, interpolator);
-    }
-
-    // The following is used only for pressure stabilization
-    CCVariable<double> J_CC;
-    new_dw->allocateTemporary(J_CC,       patch);
-    J_CC.initialize(0.);
-
-    if(flag->d_doPressureStabilization) {
-      CCVariable<double> vol_0_CC;
-      CCVariable<double> vol_CC;
-      new_dw->allocateTemporary(vol_0_CC, patch);
-      new_dw->allocateTemporary(vol_CC,   patch);
-
-      vol_0_CC.initialize(0.);
-      vol_CC.initialize(0.);
-      for(ParticleSubset::iterator iter = pset->begin();
-          iter != pset->end(); iter++){
-        particleIndex idx = *iter;
-
-        // get the volumetric part of the deformation
-        J = deformationGradient_new[idx].Determinant();
-
-        // Get the deformed volume
-        pvolume[idx]=(pmass[idx]/rho_orig)*J;
-
-        IntVector cell_index;
-        patch->findCell(px[idx],cell_index);
-
-        vol_CC[cell_index]  +=pvolume[idx];
-        vol_0_CC[cell_index]+=pmass[idx]/rho_orig;
-      }
-
-      for(CellIterator iter=patch->getCellIterator(); !iter.done();iter++){
-        IntVector c = *iter;
-        J_CC[c]=vol_CC[c]/vol_0_CC[c];
-      }
-    } //end of pressureStabilization loop  at the patch level
-
     for(ParticleSubset::iterator iter = pset->begin();iter!=pset->end();iter++){
       particleIndex idx = *iter;
 
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
-
-      if(flag->d_doPressureStabilization) {
-        IntVector cell_index;
-        patch->findCell(px[idx],cell_index);
-
-        // get the original volumetric part of the deformation
-        J = deformationGradient_new[idx].Determinant();
-
-        // Change F such that the determinant is equal to the average for
-        // the cell
-        deformationGradient_new[idx]*=cbrt(J_CC[cell_index]/J);
-      }
 
       // Compute the left Cauchy-Green deformation tensor
       B = deformationGradient_new[idx]*deformationGradient_new[idx].Transpose();
@@ -354,9 +266,6 @@ void CompMooneyRivlin::computeStressTensor(const PatchSubset* patches,
       i3w3 = invar3*w3;
 
       pstress[idx]=(B*C1pi1C2 - (B*B)*C2 + Identity*i3w3)*2.0/J;
-
-      // Update particle volumes
-      pvolume[idx]=(pmass[idx]/rho_orig)*J;
 
       // Compute wave speed + particle velocity at each particle, 
       // store the maximum

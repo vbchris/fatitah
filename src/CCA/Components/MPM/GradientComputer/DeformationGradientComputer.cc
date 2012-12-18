@@ -562,6 +562,7 @@ DeformationGradientComputer::computeDeformationGradientExplicit(const Patch* pat
         std::cerr << "**ERROR** Negative Jacobian of deformation gradient"
              << " in particle " << pParticleID[idx]  << " which has mass "
              << pMass[idx] << endl;
+        //pDefGrad_new[idx] = Identity;
         throw InvalidValue("**ERROR**:Negative Jacobian in UCNH", __FILE__, __LINE__);
       }
     }

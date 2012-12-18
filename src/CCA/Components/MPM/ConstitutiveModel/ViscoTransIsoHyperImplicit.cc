@@ -242,14 +242,12 @@ void ViscoTransIsoHyperImplicit::initializeCMData(const Patch* patch,
    Identity.Identity();
 
    ParticleSubset* pset = new_dw->getParticleSubset(matl->getDWIndex(), patch);
-   ParticleVariable<Matrix3> deformationGradient, pstress;
+   ParticleVariable<Matrix3> pstress;
    ParticleVariable<double> stretch,fail;
    ParticleVariable<Matrix3> ElasticStress;
    ParticleVariable<Matrix3> history1,history2,history3;
    ParticleVariable<Matrix3> history4,history5,history6;
 
-   new_dw->allocateAndPut(deformationGradient,
-                                             lb->pDeformationMeasureLabel,pset);
    new_dw->allocateAndPut(pstress,           lb->pStressLabel,            pset);
    new_dw->allocateAndPut(stretch,           pStretchLabel,               pset);
    new_dw->allocateAndPut(fail,              pFailureLabel,               pset);
@@ -264,7 +262,6 @@ void ViscoTransIsoHyperImplicit::initializeCMData(const Patch* patch,
  
    for(ParticleSubset::iterator iter = pset->begin();
        iter != pset->end(); iter++){
-       deformationGradient[*iter] = Identity;
        fail[*iter] = 0.0;
        pstress[*iter] = zero;
        stretch[*iter] = 1.0;
@@ -283,7 +280,6 @@ void ViscoTransIsoHyperImplicit::allocateCMDataAddRequires(Task* task,
                                                     MPMLabel* lb) const
 {
   const MaterialSubset* matlset = matl->thisMaterial();
-  task->requires(Task::NewDW,lb->pDeformationMeasureLabel_preReloc, matlset, Ghost::None);
   task->requires(Task::NewDW,lb->pStressLabel_preReloc,             matlset, Ghost::None);
 
   // Add requires local to this model
@@ -308,29 +304,25 @@ void ViscoTransIsoHyperImplicit::allocateCMDataAdd(DataWarehouse* new_dw,
   // constitutive model parameters and deformationMeasure
   Matrix3 zero(0.);
 
-  ParticleVariable<Matrix3> deformationGradient, pstress;
-  constParticleVariable<Matrix3> o_defGrad, o_stress;
+  ParticleVariable<Matrix3> pstress;
+  constParticleVariable<Matrix3> o_stress;
   ParticleVariable<double> stretch,fail;
   constParticleVariable<double> o_stretch,o_fail;
 
-  new_dw->allocateTemporary(deformationGradient,addset);
   new_dw->allocateTemporary(pstress,            addset);
   new_dw->allocateTemporary(stretch,            addset);
   new_dw->allocateTemporary(fail,               addset);
 
   new_dw->get(o_stretch,     pStretchLabel_preReloc,                  delset);
   new_dw->get(o_fail,        pFailureLabel_preReloc,                  delset);
-  new_dw->get(o_defGrad,     lb->pDeformationMeasureLabel_preReloc,   delset);
   new_dw->get(o_stress,      lb->pStressLabel_preReloc,               delset);
 
   ParticleSubset::iterator o,n = addset->begin();
   for (o=delset->begin(); o != delset->end(); o++, n++) {
-    deformationGradient[*n] = o_defGrad[*o];
     pstress[*n] = o_stress[*o];
     stretch[*n] = o_stretch[*o];
     fail[*n] = o_fail[*o];
   }
-  (*newState)[lb->pDeformationMeasureLabel]=deformationGradient.clone();
   (*newState)[lb->pStressLabel]=pstress.clone();
   (*newState)[pStretchLabel]=stretch.clone();
   (*newState)[pFailureLabel]=fail.clone();
@@ -419,10 +411,10 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
     ParticleSubset* pset;
     constParticleVariable<Point> px;
     constParticleVariable<Matrix3> psize;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new;
     constParticleVariable<Matrix3> deformationGradient;
     constParticleVariable<double> pmass,pvolumeold;
-    ParticleVariable<double> pvolume_deformed;
+    constParticleVariable<double> pvolume_deformed;
     ParticleVariable<double> stretch;
     ParticleVariable<double> fail;
     constParticleVariable<double> fail_old;
@@ -447,7 +439,7 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
     parent_old_dw->get(pmass,              lb->pMassLabel,               pset);
     parent_old_dw->get(psize,              lb->pSizeLabel,               pset);
     parent_old_dw->get(pvolumeold,         lb->pVolumeLabel,             pset);
-    parent_old_dw->get(deformationGradient,lb->pDeformationMeasureLabel, pset);
+    parent_old_dw->get(deformationGradient,lb->pDefGradLabel,            pset);
     parent_old_dw->get(pfiberdir,          lb->pFiberDirLabel,           pset);
     parent_old_dw->get(fail_old,           pFailureLabel,                pset);
     parent_old_dw->get(ElasticStress_old,   pElasticStressLabel,         pset);
@@ -458,9 +450,10 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
     parent_old_dw->get(history5_old,        pHistory5Label,              pset);
     parent_old_dw->get(history6_old,        pHistory6Label,              pset);
 
+    new_dw->get(pvolume_deformed,           lb->pVolumeLabel_preReloc,   pset);
+    new_dw->get(deformationGradient_new,    lb->pDefGradLabel_preReloc,  pset);
+
     new_dw->allocateAndPut(pstress,         lb->pStressLabel_preReloc,   pset);
-    new_dw->allocateAndPut(pvolume_deformed,lb->pVolumeDeformedLabel,    pset);
-    new_dw->allocateTemporary(deformationGradient_new,pset);
     new_dw->allocateAndPut(stretch,         pStretchLabel_preReloc,      pset);
     new_dw->allocateAndPut(fail,            pFailureLabel_preReloc,      pset);
     new_dw->allocateAndPut(ElasticStress,   pElasticStressLabel_preReloc,pset);
@@ -506,30 +499,9 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
                                    iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pstress[idx] = Matrix3(0.0);
-        pvolume_deformed[idx] = pvolumeold[idx];
       }
     }
     else{
-      Ghost::GhostType  gac   = Ghost::AroundCells;
-      if(flag->d_doGridReset){
-        constNCVariable<Vector> dispNew;
-        old_dw->get(dispNew,lb->dispNewLabel,dwi,patch, gac, 1);
-        computeDeformationGradientFromIncrementalDisplacement(
-                                                      dispNew, pset, px,
-                                                      deformationGradient,
-                                                      deformationGradient_new,
-                                                      dx, psize, interpolator);
-      }
-      else if(!flag->d_doGridReset){
-        constNCVariable<Vector> gdisplacement;
-        old_dw->get(gdisplacement, lb->gDisplacementLabel,dwi,patch,gac,1);
-        computeDeformationGradientFromTotalDisplacement(gdisplacement,
-                                                        pset, px,
-                                                        deformationGradient_new,
-                                                        deformationGradient,
-                                                        dx, psize,interpolator);
-      }
-
       double time = d_sharedState->getElapsedTime();
 
       for(ParticleSubset::iterator iter = pset->begin();
@@ -864,7 +836,7 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
         BnltDBnl(Bnl,sig,kgeo);
         double volold = (pmass[idx]/rho_orig);
         double volnew = volold*J;
-        pvolume_deformed[idx] = volnew;
+        //pvolume_deformed[idx] = volnew;
         for(int ii = 0;ii<24;ii++){
           for(int jj = 0;jj<24;jj++){
             kmat[ii][jj]*=volold;
@@ -911,11 +883,11 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
      ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
      constParticleVariable<Point> px;
      constParticleVariable<Matrix3> psize;
-     ParticleVariable<Matrix3> deformationGradient_new;
+     constParticleVariable<Matrix3> deformationGradient_new;
      constParticleVariable<Matrix3> deformationGradient;
      ParticleVariable<Matrix3> pstress;
      constParticleVariable<double> pvolumeold;
-     ParticleVariable<double> pvolume_deformed;
+     constParticleVariable<double> pvolume_deformed;
 
      ParticleVariable<double> stretch;
      ParticleVariable<double> fail;
@@ -938,7 +910,7 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
      old_dw->get(psize,               lb->pSizeLabel,               pset);
      old_dw->get(pvolumeold,          lb->pVolumeLabel,             pset);
      old_dw->get(pfiberdir,           lb->pFiberDirLabel,           pset);
-     old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+     old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
      old_dw->get(fail_old,            pFailureLabel,                pset);
      
      old_dw->get(ElasticStress_old,   pElasticStressLabel,          pset);
@@ -949,10 +921,10 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
      old_dw->get(history5_old,        pHistory5Label,               pset);
      old_dw->get(history6_old,        pHistory6Label,               pset);
 
+     new_dw->get(pvolume_deformed,        lb->pVolumeLabel_preReloc,    pset);
+     new_dw->get(deformationGradient_new, lb->pDefGradLabel_preReloc,   pset);
+
      new_dw->allocateAndPut(pstress,         lb->pStressLabel_preReloc,   pset);
-     new_dw->allocateAndPut(pvolume_deformed,lb->pVolumeDeformedLabel,    pset);
-     new_dw->allocateAndPut(deformationGradient_new,
-                                 lb->pDeformationMeasureLabel_preReloc,   pset);
      new_dw->allocateAndPut(pfiberdir_carry, lb->pFiberDirLabel_preReloc, pset);
      new_dw->allocateAndPut(stretch,         pStretchLabel_preReloc,      pset);
      new_dw->allocateAndPut(fail,            pFailureLabel_preReloc,      pset);
@@ -994,30 +966,9 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
                                    iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pstress[idx] = Matrix3(0.0);
-        deformationGradient_new[idx] = Identity;
-        pvolume_deformed[idx] = pvolumeold[idx];
       }
     }
     else{
-     Ghost::GhostType  gac   = Ghost::AroundCells;
-     if(flag->d_doGridReset){
-        constNCVariable<Vector> dispNew;
-        new_dw->get(dispNew,lb->dispNewLabel,dwi,patch, gac, 1);
-        computeDeformationGradientFromIncrementalDisplacement(
-                                                      dispNew, pset, px,
-                                                      deformationGradient,
-                                                      deformationGradient_new,
-                                                      dx, psize, interpolator);
-     }
-     else if(!flag->d_doGridReset){
-        constNCVariable<Vector> gdisplacement;
-        new_dw->get(gdisplacement, lb->gDisplacementLabel,dwi,patch,gac,1);
-        computeDeformationGradientFromTotalDisplacement(gdisplacement,
-                                                        pset, px,
-                                                        deformationGradient_new,
-                                                        deformationGradient,
-                                                        dx, psize,interpolator);
-     }
      double time = d_sharedState->getElapsedTime();
      for(ParticleSubset::iterator iter = pset->begin();
                                   iter != pset->end(); iter++){
@@ -1155,7 +1106,7 @@ ViscoTransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patch
                      + history4[idx]*y4+history5[idx]*y5+history6[idx]*y6
                      + ElasticStress[idx];
 
-        pvolume_deformed[idx] = pvolumeold[idx]*Jinc;
+        //pvolume_deformed[idx] = pvolumeold[idx]*Jinc;
       }  // end loop over particles
     }   // isn't rigid
     delete interpolator;

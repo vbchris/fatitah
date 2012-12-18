@@ -680,8 +680,14 @@ SmallStrainPlastic::computeStressTensorExplicit(const PatchSubset* patches,
     // GET GLOBAL DATA 
 
     // Get the deformation gradient (F)
-    constParticleVariable<Matrix3>  pDefGrad;
-    old_dw->get(pDefGrad, lb->pDeformationMeasureLabel, pset);
+    constParticleVariable<Matrix3>  pDefGrad, pVelGrad_new;
+    old_dw->get(pDefGrad, lb->pDefGradLabel, pset);
+    new_dw->get(pVelGrad_new, lb->pVelGradLabel_preReloc, pset);
+
+    ParticleVariable<double>  pVol_new;
+    ParticleVariable<Matrix3>  pDefGrad_new;
+    new_dw->getModifiable(pVol_new, lb->pVolumeLabel_preReloc, pset);
+    new_dw->getModifiable(pDefGrad_new, lb->pDefGradLabel_preReloc, pset);
 
     // Get the particle location, particle size, particle mass, particle volume
     constParticleVariable<Point>  px;
@@ -694,9 +700,7 @@ SmallStrainPlastic::computeStressTensorExplicit(const PatchSubset* patches,
 
     // Get the velocity from the grid and particle velocity
     constParticleVariable<Vector> pVelocity;
-    constNCVariable<Vector>       gVelocity;
     old_dw->get(pVelocity, lb->pVelocityLabel, pset);
-    new_dw->get(gVelocity, lb->gVelocityStarLabel, dwi, patch, gac, NGN);
 
     // Get the particle stress and temperature
     constParticleVariable<Matrix3> pStress_old;
@@ -723,16 +727,11 @@ SmallStrainPlastic::computeStressTensorExplicit(const PatchSubset* patches,
 
     // Create and allocate arrays for storing the updated information
     // GLOBAL
-    ParticleVariable<Matrix3> pDefGrad_new, pStress_new;
-    ParticleVariable<double>  pVol_new;
+    ParticleVariable<Matrix3> pStress_new;
     ParticleVariable<double> pdTdt, p_q;
 
-    new_dw->allocateAndPut(pDefGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pStress_new,      
                            lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVol_new, 
-                           lb->pVolumeLabel_preReloc,             pset);
     new_dw->allocateAndPut(pdTdt, lb->pdTdtLabel_preReloc,        pset);
     new_dw->allocateAndPut(p_q,   lb->p_qLabel_preReloc,          pset);
 
@@ -772,52 +771,22 @@ SmallStrainPlastic::computeStressTensorExplicit(const PatchSubset* patches,
       // Stage 1:
       //-----------------------------------------------------------------------
       // Calculate the velocity gradient (L) from the grid velocity
-      Matrix3 velGrad(0.0);
-      if(!flag->d_axisymmetric){
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDefGrad[idx]);
-
-        computeVelocityGradient(velGrad,ni,d_S, oodx, gVelocity);
-      } else {  // axi-symmetric kinematics
-        // Get the node indices that surround the cell
-        interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                                   psize[idx],pDefGrad[idx]);
-        // x -> r, y -> z, z -> theta
-        computeAxiSymVelocityGradient(velGrad,ni,d_S,S,oodx,gVelocity,px[idx]);
-      }
+      Matrix3 velGrad = pVelGrad_new[idx];
 
       // Compute the deformation gradient increment using the time_step
       // velocity gradient F_n^np1 = dudx * dt + Identity
       // Update the deformation gradient tensor to its time n+1 value.
-      Matrix3 defGradInc = velGrad*delT + one;
-      defGrad_new = defGradInc*pDefGrad[idx];
-      pDefGrad_new[idx] = defGrad_new;
+      defGrad_new = pDefGrad_new[idx];
       double J_new = defGrad_new.Determinant();
+      double rho_cur = rho_0/J_new;
 
       // If the erosion algorithm sets the stress to zero then don't allow
       // any deformation.
       if(d_setStressToZero && pLocalized_old[idx]){
         pDefGrad_new[idx] = pDefGrad[idx];
+        pVol_new[idx] = pMass[idx]/rho_cur;
         J_new = pDefGrad[idx].Determinant();
       }
-
-      // Check 1: Check for negative Jacobian (determinant of deformation gradient)
-      if (!(J_new > 0.0)) {
-        cerr << getpid() 
-             << "**ERROR** Negative Jacobian of deformation gradient" 
-             << " in particle " << idx << endl;
-        cerr << "l = " << velGrad << endl;
-        cerr << "F_old = " << pDefGrad[idx] << endl;
-        cerr << "F_inc = " << defGradInc << endl;
-        cerr << "F_new = " << defGrad_new << endl;
-        cerr << "J_old = " << pDefGrad[idx].Determinant() << endl;
-        cerr << "J_new = " << J_new << endl;
-        throw ParameterNotFound("**ERROR**:InvalidValue: J < 0.0", __FILE__, __LINE__);
-      }
-
-      // Calculate the current density and deformed volume
-      double rho_cur = rho_0/J_new;
-      pVol_new[idx]=pMass[idx]/rho_cur;
 
       // Compute polar decomposition of F (F = RU)
       pDefGrad[idx].polarDecompositionRMB(rightStretch, rotation);

@@ -122,12 +122,10 @@ namespace Uintah {
     const VarLabel* pFailureStressOrStrainLabel;
     const VarLabel* pLocalizedLabel;
     const VarLabel* pDamageLabel;
-    const VarLabel* pDeformRateLabel;
     const VarLabel* pTimeOfLocLabel;
     const VarLabel* pFailureStressOrStrainLabel_preReloc;
     const VarLabel* pLocalizedLabel_preReloc;
     const VarLabel* pDamageLabel_preReloc;
-    const VarLabel* pDeformRateLabel_preReloc;
     const VarLabel* pTimeOfLocLabel_preReloc;
 
     // Plasticity Requirements //

@@ -23,6 +23,7 @@
  */
 
 #include <CCA/Components/MPM/ConstitutiveModel/Biswajit/HyperelasticPlastic.h>
+#include <CCA/Components/MPM/GradientComputer/DisplacementGradientComputer.h>
 #include <Core/Grid/Patch.h>
 #include <CCA/Ports/DataWarehouse.h>
 #include <Core/Grid/Variables/NCVariable.h>
@@ -125,10 +126,6 @@ HyperelasticPlastic::HyperelasticPlastic(ProblemSpecP& ps, MPMFlags* Mflag)
                                ParticleVariable<Matrix3>::getTypeDescription());
   bElBarLabel_preReloc       = VarLabel::create("p.bElBar+",
                                ParticleVariable<Matrix3>::getTypeDescription());
-  pDeformRateLabel           = VarLabel::create("p.deformRate",
-                               ParticleVariable<Matrix3>::getTypeDescription());
-  pDeformRateLabel_preReloc  = VarLabel::create("p.deformRate+",
-                               ParticleVariable<Matrix3>::getTypeDescription());
 }
 
 HyperelasticPlastic::HyperelasticPlastic(ProblemSpecP& ps, MPMFlags* Mflag, bool plas, bool dam)
@@ -204,10 +201,6 @@ HyperelasticPlastic::HyperelasticPlastic(ProblemSpecP& ps, MPMFlags* Mflag, bool
                              ParticleVariable<Matrix3>::getTypeDescription());
   bElBarLabel_preReloc       = VarLabel::create("p.bElBar+",
                              ParticleVariable<Matrix3>::getTypeDescription());
-  pDeformRateLabel           = VarLabel::create("p.deformRate",
-                             ParticleVariable<Matrix3>::getTypeDescription());
-  pDeformRateLabel_preReloc  = VarLabel::create("p.deformRate+",
-                             ParticleVariable<Matrix3>::getTypeDescription());    
 }
 
 HyperelasticPlastic::HyperelasticPlastic(const HyperelasticPlastic* cm) : ConstitutiveModel(cm), ImplicitCM(cm)
@@ -269,10 +262,6 @@ HyperelasticPlastic::HyperelasticPlastic(const HyperelasticPlastic* cm) : Consti
   bElBarLabel                = VarLabel::create("p.bElBar",
                              ParticleVariable<Matrix3>::getTypeDescription());
   bElBarLabel_preReloc       = VarLabel::create("p.bElBar+",
-                             ParticleVariable<Matrix3>::getTypeDescription());
-  pDeformRateLabel           = VarLabel::create("p.deformRate",
-                             ParticleVariable<Matrix3>::getTypeDescription());
-  pDeformRateLabel_preReloc  = VarLabel::create("p.deformRate+",
                              ParticleVariable<Matrix3>::getTypeDescription());
 }
 
@@ -550,8 +539,6 @@ HyperelasticPlastic::~HyperelasticPlastic()
   // Universal Deletes
   VarLabel::destroy(bElBarLabel);
   VarLabel::destroy(bElBarLabel_preReloc);
-  VarLabel::destroy(pDeformRateLabel);
-  VarLabel::destroy(pDeformRateLabel_preReloc);
 }
 
 // Initialization Functions //
@@ -570,23 +557,17 @@ void HyperelasticPlastic::allocateCMDataAdd(DataWarehouse* new_dw,
   if(flag->d_integrator != MPMFlags::Implicit){
     copyDelToAddSetForConvertExplicit(new_dw, delset, addset, newState);
   } else {  // Implicit
-    ParticleVariable<Matrix3>     deformationGradient, pstress;
-    new_dw->allocateTemporary(deformationGradient,addset);
-    new_dw->allocateTemporary(pstress,            addset);
+    ParticleVariable<Matrix3> pstress;
+    new_dw->allocateTemporary(pstress, addset);
     
-    constParticleVariable<Matrix3> o_deformationGradient, o_stress;
-    new_dw->get(o_deformationGradient,lb->pDeformationMeasureLabel_preReloc,
-                                                   delset);
-    new_dw->get(o_stress,             lb->pStressLabel_preReloc,             
-                                                   delset);
+    constParticleVariable<Matrix3> o_stress;
+    new_dw->get(o_stress, lb->pStressLabel_preReloc, delset);
     
     ParticleSubset::iterator o,n = addset->begin();
     for (o=delset->begin(); o != delset->end(); o++, n++) {
-      deformationGradient[*n] = o_deformationGradient[*o];
-      pstress[*n]             = o_stress[*o];
+      pstress[*n] = o_stress[*o];
     }
     
-    (*newState)[lb->pDeformationMeasureLabel]=deformationGradient.clone();
     (*newState)[lb->pStressLabel]=pstress.clone();
   }
   
@@ -653,23 +634,17 @@ void HyperelasticPlastic::allocateCMDataAdd(DataWarehouse* new_dw,
   
   // Universal
   ParticleVariable<Matrix3>        bElBar;
-  ParticleVariable<Matrix3>        pDeformRate;
-  new_dw->allocateTemporary(pDeformRate, addset);
   new_dw->allocateTemporary(bElBar,      addset);
   
   constParticleVariable<Matrix3>   o_bElBar;
-  constParticleVariable<Matrix3>   o_pDeformRate;
   new_dw->get(o_bElBar,      bElBarLabel_preReloc,      delset);
-  new_dw->get(o_pDeformRate, pDeformRateLabel_preReloc, delset);
   
   ParticleSubset::iterator o;
   for (o=delset->begin(); o != delset->end(); o++, nUniv++) {
     bElBar[*nUniv]                   = o_bElBar[*o];
-    pDeformRate[*nUniv]              = o_pDeformRate[*o];
   }
   
   (*newState)[ bElBarLabel]          = bElBar.clone();
-  (*newState)[pDeformRateLabel]      = pDeformRate.clone();
 }
 
 void HyperelasticPlastic::allocateCMDataAddRequires(Task* task,
@@ -704,11 +679,9 @@ void HyperelasticPlastic::allocateCMDataAddRequires(Task* task,
   task->requires(Task::NewDW,bElBarLabel_preReloc,            matlset, gnone);
   if (flag->d_integrator != MPMFlags::Implicit) { // non implicit
     addSharedRForConvertExplicit(task, matlset, patches);
-    task->requires(Task::NewDW, pDeformRateLabel_preReloc,    matlset, gnone);
   } else { // Implicit only stuff
     task->requires(Task::NewDW,lb->pStressLabel_preReloc,     matlset, gnone);
-    task->requires(Task::NewDW,lb->pDeformationMeasureLabel_preReloc, matlset,
-                                                                       gnone);
+    task->requires(Task::NewDW,lb->pDefGradLabel_preReloc,    matlset, gnone);
   }
 }
 
@@ -737,11 +710,6 @@ void HyperelasticPlastic::carryForward(const PatchSubset* patches,
         iter != pset->end(); iter++){
       particleIndex idx = *iter;
       bElBar_new[idx] = bElBar[idx];
-    }
-    if (flag->d_integrator != MPMFlags::Implicit) {
-      ParticleVariable<Matrix3> pDeformRate;
-      new_dw->allocateAndPut(pDeformRate,   pDeformRateLabel_preReloc, pset);
-      pDeformRate.copyData(bElBar);
     }
     
     // Plasticity
@@ -815,11 +783,9 @@ void HyperelasticPlastic::initializeCMData(const Patch* patch,
   else {
     //initSharedDataForExplicit(patch, matl, new_dw);
     ParticleVariable<double>  pdTdt;
-    ParticleVariable<Matrix3> pDefGrad;
     ParticleVariable<Matrix3> pStress;
 
     new_dw->allocateAndPut(pdTdt,       lb->pdTdtLabel,               pset);
-    new_dw->allocateAndPut(pDefGrad,    lb->pDeformationMeasureLabel, pset);
     new_dw->allocateAndPut(pStress,     lb->pStressLabel,             pset);
 
     ParticleSubset::iterator iter = pset->begin();
@@ -828,16 +794,17 @@ void HyperelasticPlastic::initializeCMData(const Patch* patch,
       for(; iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pdTdt[idx] = 0.0;
-        pDefGrad[idx] = Identity;
         pStress[idx] = zero;
       }
     } else {
+      ParticleVariable<Matrix3> pDefGrad;
+      new_dw->getModifiable(pDefGrad,     lb->pDefGradLabel,            pset);
       double p = d_init_pressure;
       Matrix3 sigInit(p, 0.0, 0.0, 0.0, p, 0.0, 0.0, 0.0, p);
       for(;iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pdTdt[idx] = 0.0;
-        pDefGrad[idx] = Identity;
+        pDefGrad[idx] = Identity; // **WARNING** This is incorrect.
         pStress[idx] = sigInit;
       }
     }
@@ -974,14 +941,12 @@ void HyperelasticPlastic::initializeCMData(const Patch* patch,
   }
   
   // Universal
-  ParticleVariable<Matrix3> deformationGradient, pstress, bElBar, pDeformRate;
+  ParticleVariable<Matrix3> deformationGradient, pstress, bElBar;
   
-  new_dw->allocateAndPut(pDeformRate, pDeformRateLabel, pset);
   new_dw->allocateAndPut(bElBar,      bElBarLabel,      pset);
 
   for(;iterUniv != pset->end(); iterUniv++){
     bElBar[*iterUniv]      = Identity;
-    pDeformRate[*iterUniv] = zero;
   }
   
   // If not implicit, compute timestep
@@ -1045,7 +1010,6 @@ void HyperelasticPlastic::addComputesAndRequires(Task* task,
   // Universal
   task->requires(Task::OldDW, bElBarLabel,              matlset, gnone);
   task->computes(bElBarLabel_preReloc,                  matlset);
-  task->computes(pDeformRateLabel_preReloc,             matlset);
 }
 
 void HyperelasticPlastic::addComputesAndRequires(Task* task,
@@ -1099,7 +1063,6 @@ void HyperelasticPlastic::addInitialComputesAndRequires(Task* task,
   
   // Universal
   task->computes(bElBarLabel,           matlset);
-  task->computes(pDeformRateLabel,      matlset);
 }
 
 
@@ -1289,33 +1252,30 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
     // Old data containers
     constParticleVariable<int>     pLocalized;
     constParticleVariable<double>  pTimeOfLoc;
-    constParticleVariable<Short27> pgCode;
     constParticleVariable<double>  pFailureStrain, pMass, pDamage;
     constParticleVariable<double>  pPlasticStrain_old, pYieldStress_old, pcolor;
     constParticleVariable<long64>  pParticleID;
     constParticleVariable<Point>   px;
-    constParticleVariable<Matrix3> pDefGrad, bElBar;
+    constParticleVariable<Matrix3> pDefGrad_old, bElBar;
     constParticleVariable<Matrix3> pSize;
     constParticleVariable<Vector>  pVelocity;
+
+    constParticleVariable<Matrix3> pDefGrad_new, pVelGrad_new;
+    constParticleVariable<double>  pVolume_new;
+
     // New data containers
     ParticleVariable<int>          pLocalized_new;
     ParticleVariable<double>       pTimeOfLoc_new;
     ParticleVariable<double>       pPlasticStrain, pYieldStress;
-    ParticleVariable<double>       pFailureStrain_new, pVolume_new, pDamage_new;
+    ParticleVariable<double>       pFailureStrain_new, pDamage_new;
     ParticleVariable<double>       pdTdt,p_q;
-    ParticleVariable<Matrix3>      pDefGrad_new, pDeformRate;
     ParticleVariable<Matrix3>      pStress,bElBar_new;
-    ParticleVariable<Matrix3>      velGrad;
-    constNCVariable<Vector>        gDisp;
-    constNCVariable<Vector>        gVelocity;
-    constNCVariable<Vector>        GVelocity; 
+    ParticleVariable<Matrix3>      pDeformRate;
     
     
     // Particle and grid data
     double oodx[3] = {1./dx.x(), 1./dx.y(), 1./dx.z()};
 
-    new_dw->get(gVelocity,   lb->gVelocityStarLabel, dwi, patch, gac, NGN);
-    
     // Plasticity gets
     if(d_usePlasticity) {
       old_dw->get(pPlasticStrain_old,         
@@ -1343,10 +1303,6 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
       old_dw->get(pParticleID,              lb->pParticleIDLabel,        pset);
       old_dw->get(pDamage,                  pDamageLabel,                pset);
       
-      if (flag->d_fracture) {
-        new_dw->get(pgCode,    lb->pgCodeLabel, pset);
-        new_dw->get(GVelocity, lb->GVelocityStarLabel, dwi, patch, gac, NGN);
-      }
       new_dw->allocateAndPut(pLocalized_new, 
                              pLocalizedLabel_preReloc,              pset);
       new_dw->allocateAndPut(pTimeOfLoc_new, 
@@ -1364,21 +1320,20 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
     old_dw->get(px,                  lb->pXLabel,                  pset);
     old_dw->get(pMass,               lb->pMassLabel,               pset);
     old_dw->get(pVelocity,           lb->pVelocityLabel,           pset);
-    old_dw->get(pDefGrad,            lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDefGrad_old,        lb->pDefGradLabel,            pset);
+    new_dw->get(pDefGrad_new,        lb->pDefGradLabel_preReloc,   pset);
+    new_dw->get(pVelGrad_new,        lb->pVelGradLabel_preReloc,   pset);
+    new_dw->get(pVolume_new,         lb->pVolumeLabel_preReloc,    pset);
     old_dw->get(pSize,               lb->pSizeLabel,               pset);
     old_dw->get(bElBar,              bElBarLabel,                  pset);
     
     // Universal Allocations
     new_dw->allocateAndPut(bElBar_new,  bElBarLabel_preReloc,      pset);
     new_dw->allocateAndPut(pStress,     lb->pStressLabel_preReloc, pset);
-    new_dw->allocateAndPut(pVolume_new, lb->pVolumeLabel_preReloc, pset);
     new_dw->allocateAndPut(pdTdt,       lb->pdTdtLabel_preReloc,   pset);
     new_dw->allocateAndPut(p_q,         lb->p_qLabel_preReloc,     pset);
-    new_dw->allocateAndPut(pDeformRate, pDeformRateLabel_preReloc, pset);
-    new_dw->allocateAndPut(pDefGrad_new,
-                            lb->pDeformationMeasureLabel_preReloc, pset);
-    // Temporary Allocations
-    new_dw->allocateTemporary(velGrad,                             pset);
+
+    new_dw->allocateTemporary(pDeformRate, pset);
 
     if(flag->d_with_color) {
       old_dw->get(pcolor,      lb->pColorLabel,  pset);
@@ -1386,12 +1341,10 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
 
     ParticleSubset::iterator iter = pset->begin();
     for(; iter != pset->end(); iter++){
-      particleIndex idx = *iter;
-      
+      particleIndex idx = *iter;  
+    
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
-      // Initialize velocity gradient
-      Matrix3 velGrad_new(0.0);
 
 #ifdef Comer
       // gcd change to set shear = pcolor for each particle
@@ -1400,147 +1353,16 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
       }
 #endif
 
-      if(!flag->d_axisymmetric){
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,pSize[idx],
-                                                              pDefGrad[idx]);
-        
-        // Fracture-- only in Damage
-        short pgFld[27];
-        if (flag->d_fracture) {
-          for(int k=0; k<27; k++){
-            pgFld[k]=pgCode[idx][k];
-          }
-          computeVelocityGradient(velGrad_new,ni,d_S,oodx,pgFld,
-                                  gVelocity,GVelocity);
-        } else {
-            // Get the node indices that surround the cell
-            interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,pSize[idx],
-                                                                 pDefGrad[idx]);
-            
-            computeVelocityGradient(velGrad_new,ni,d_S, oodx, gVelocity);
-          }
-      } else {  // axi-symmetric kinematics
-        // Get the node indices that surround the cell
-        interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                            pSize[idx],
-                                                            pDefGrad[idx]);
-        // x -> r, y -> z, z -> theta
-        computeAxiSymVelocityGradient(velGrad_new,ni,d_S,S,oodx,gVelocity,
-                                                                 px[idx]);
-      }
-      pDefGradInc = (velGrad_new*delT + Identity);
-      pDefGrad_new[idx] = pDefGradInc*pDefGrad[idx]; 
-      velGrad[idx] = velGrad_new;
-
       // Check 1: Look at Jacobian
+      pDefGradInc = pDefGrad_new[idx]*pDefGrad_old[idx].Inverse();
       J = pDefGrad_new[idx].Determinant();
-      if (!(J > 0.0)) {
-        cerr << getpid() ;
-        cerr << "HyperelasticPlastic::idx = " << idx << " J = " << J 
-             << " matl = " << matl << endl;
-        cerr << "F_old = " << pDefGrad[idx]     << endl;
-        cerr << "F_inc = " << pDefGradInc       << endl;
-        cerr << "F_new = " << pDefGrad_new[idx] << endl;
-        cerr << "J = "     << J                 << endl;
-        constParticleVariable<long64> pParticleID;
-        old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-        cerr << "ParticleID = " << pParticleID[idx] << endl;
-        cerr << "**ERROR** Negative Jacobian of deformation gradient"
-             << " in particle " << pParticleID[idx]  << " which has mass "
-             << pMass[idx] << endl;
-        // pDefGrad_new[idx] =  pDefGrad[idx];
-        // pDefGradInc = Identity;
-        cerr << "VelGrad = " << velGrad_new << endl;
-        throw InvalidValue("**ERROR**:HyperelasticPlastic", __FILE__, __LINE__);
-      }
-    }
+      double rho_cur  = rho_orig/J;
 
-    // The following is used only for pressure stabilization
-    CCVariable<double> J_CC;
-    new_dw->allocateTemporary(J_CC,       patch);
-    J_CC.initialize(0.);
-    if(flag->d_doPressureStabilization) {
-      CCVariable<double> vol_0_CC;
-      CCVariable<double> vol_CC;
-      new_dw->allocateTemporary(vol_0_CC, patch);
-      new_dw->allocateTemporary(vol_CC,   patch);
-        
-      vol_0_CC.initialize(0.);
-      vol_CC.initialize(0.);
-      for(ParticleSubset::iterator iter = pset->begin();
-          iter != pset->end(); iter++){
-        particleIndex idx = *iter;
-          
-        // get the volumetric part of the deformation
-        J = pDefGrad_new[idx].Determinant();
-          
-        // Get the deformed volume
-        pVolume_new[idx]=(pMass[idx]/rho_orig)*J;
-          
-        IntVector cell_index;
-        patch->findCell(px[idx],cell_index);
-          
-        vol_CC[cell_index]  +=pVolume_new[idx];
-        vol_0_CC[cell_index]+=pMass[idx]/rho_orig;
-      }
-        
-      for(CellIterator iter=patch->getCellIterator(); !iter.done();iter++){
-        IntVector c = *iter;
-        J_CC[c]=vol_CC[c]/vol_0_CC[c];
-      }
-    } //end of pressureStabilization loop  at the patch level
-
-    iter = pset->begin();
-    for(; iter != pset->end(); iter++){
-      particleIndex idx = *iter;  
-    
-      pDeformRate[idx] = (velGrad[idx] + velGrad[idx].Transpose())*0.5;
-      
-      // More Pressure Stabilization
-      if(flag->d_doPressureStabilization) {
-        IntVector cell_index;
-        patch->findCell(px[idx],cell_index);
-        
-        // get the original volumetric part of the deformation
-        J = pDefGrad_new[idx].Determinant();
-        
-        // Change F such that the determinant is equal to the average for
-        // the cell
-        pDefGrad_new[idx]*=cbrt(J_CC[cell_index])/cbrt(J);
-        pDefGradInc = pDefGrad_new[idx]*pDefGrad[idx].Inverse();
-      }
-      else{
-        pDefGradInc = (velGrad[idx]*delT + Identity);
-      }
-
-      Jinc    = pDefGradInc.Determinant();
-      defGrad = pDefGrad_new[idx];
+      pDeformRate[idx] = (pVelGrad_new[idx] + pVelGrad_new[idx].Transpose())*0.5;
 
       // 1) Get the volumetric part of the deformation
       // 2) Compute the deformed volume and new density
-      J               = defGrad.Determinant();
-      double rho_cur  = rho_orig/J;
-      pVolume_new[idx]= (pMass[idx]/rho_orig)*J;
 
-      // Check 1: Look at Jacobian
-      if (!(J > 0.0)) {
-        cerr << getpid() ;
-        cerr << "idx = " << idx << " J = " << J << " matl = " << matl << endl;
-        cerr << "F_old = " << pDefGrad[idx]     << endl;
-        cerr << "F_inc = " << pDefGradInc       << endl;
-        cerr << "F_new = " << pDefGrad_new[idx] << endl;
-        cerr << "J = "     << J                 << endl;
-        constParticleVariable<long64> pParticleID;
-        old_dw->get(pParticleID, lb->pParticleIDLabel, pset);
-        cerr << "ParticleID = " << pParticleID[idx] << endl;
-        cerr << "**ERROR** Negative Jacobian of deformation gradient"
-             << " in particle " << pParticleID[idx]  << " which has mass "
-             << pMass[idx] << endl;
-        // pDefGrad_new[idx] =  pDefGrad[idx];
-        throw InvalidValue("**ERROR**:Negative Jacobian in HyperelasticPlastic", __FILE__, __LINE__);
-      }
-      
       // Get the volume preserving part of the deformation gradient increment
       //      fBar = pDefGradInc*pow(Jinc, -onethird);
       fBar = pDefGradInc/cbrt(Jinc);
@@ -1598,7 +1420,7 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
         pDamage_new[idx] = pDamage[idx];
         // Modify the stress if particle has failed/damaged
         if (d_brittleDamage) {
-          updateDamageAndModifyStress(defGrad, pFailureStrain[idx],
+          updateDamageAndModifyStress(pDefGrad_new[idx], pFailureStrain[idx],
                                       pFailureStrain_new[idx], pVolume_new[idx],
                                       pDamage[idx], pDamage_new[idx],
                                       pStress[idx], pParticleID[idx]);
@@ -1606,7 +1428,7 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
           if (pDamage_new[idx]>0.0) totalLocalizedParticle+=1;
         }
         else {
-          updateFailedParticlesAndModifyStress(defGrad, pFailureStrain[idx], 
+          updateFailedParticlesAndModifyStress(pDefGrad_new[idx], pFailureStrain[idx], 
                                            pLocalized[idx], pLocalized_new[idx],
                                            pTimeOfLoc[idx], pTimeOfLoc_new[idx],
                                            pStress[idx], pParticleID[idx],time);
@@ -1690,10 +1512,10 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
   constParticleVariable<double>  pVol,pMass,pvolumeold;
   constParticleVariable<Point>   px;
   constParticleVariable<Matrix3> pSize;
-  constParticleVariable<Matrix3> pDefGrad, pBeBar;
-  constNCVariable<Vector>        gDisp;
-  ParticleVariable<double>       pVolume_new;
-  ParticleVariable<Matrix3>      pDefGrad_new, pBeBar_new, pStress;
+  constParticleVariable<Matrix3> pDefGrad_old, pBeBar;
+  constParticleVariable<Matrix3> pDefGrad_new, pDispGrad_new;
+  constParticleVariable<double>  pVolume_new;
+  ParticleVariable<Matrix3>      pBeBar_new, pStress;
   
   // Local variables
   Matrix3 tauDev(0.0), pDefGradInc(0.0), pDispGrad(0.0), pRelDefGradBar(0.0);
@@ -1728,13 +1550,20 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
     parent_old_dw->get(pSize,    lb->pSizeLabel,               pset);
     parent_old_dw->get(pMass,    lb->pMassLabel,               pset);
     parent_old_dw->get(pvolumeold, lb->pVolumeLabel,           pset);
-    parent_old_dw->get(pDefGrad, lb->pDeformationMeasureLabel, pset);
+    parent_old_dw->get(pDefGrad_old, lb->pDefGradLabel,        pset);
     parent_old_dw->get(pBeBar,   bElBarLabel,                  pset);
 
+    new_dw->get(pVolume_new,     lb->pVolumeLabel_preReloc,    pset);
+    new_dw->get(pDefGrad_new,    lb->pDefGradLabel_preReloc,   pset);
+    new_dw->get(pDispGrad_new,   lb->pDispGradLabel_preReloc,  pset);
+
     new_dw->allocateAndPut(pStress,     lb->pStressLabel_preReloc, pset);
-    new_dw->allocateAndPut(pVolume_new, lb->pVolumeDeformedLabel,  pset);
-    new_dw->allocateTemporary(pDefGrad_new, pset);
     new_dw->allocateTemporary(pBeBar_new,   pset);
+
+    DisplacementGradientComputer gradComp(flag);
+    ParticleInterpolator* interpolator = flag->d_interpolator->clone(patch);
+    vector<IntVector> ni(interpolator->size());
+    vector<Vector> d_S(interpolator->size());
     
     ParticleSubset::iterator iter = pset->begin();
     
@@ -1745,37 +1574,9 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
           iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pStress[idx] = Matrix3(0.0);
-        pVolume_new[idx] = pvolumeold[idx];
       }
     }
     else{
-      ParticleInterpolator* interpolator = flag->d_interpolator->clone(patch);
-      vector<IntVector> ni(interpolator->size());
-      vector<Vector> d_S(interpolator->size());
-
-
-      if(flag->d_doGridReset){
-        constNCVariable<Vector> dispNew;
-        old_dw->get(dispNew,lb->dispNewLabel,dwi,patch, gac, 1);
-        computeDeformationGradientFromIncrementalDisplacement(dispNew, pset, px,
-                                                              pDefGrad,
-                                                              pDefGrad_new,
-                                                              dx, pSize,
-                                                              interpolator);
-      }
-      else if(!flag->d_doGridReset){
-        constNCVariable<Vector> gdisplacement;
-        old_dw->get(gdisplacement, lb->gDisplacementLabel,dwi,patch,gac,1);
-        computeDeformationGradientFromTotalDisplacement(gdisplacement,
-                                                        pset, px,
-                                                        pDefGrad_new,
-                                                        pDefGrad,
-                                                        dx, pSize,interpolator);
-      }
-
-      if((d_usePlasticity || d_useDamage) && flag->d_doGridReset){
-        old_dw->get(gDisp,           lb->dispNewLabel, dwi, patch, gac, 1);
-      }
 
       for(iter = pset->begin(); iter != pset->end(); iter++){
         particleIndex idx = *iter;
@@ -1783,18 +1584,17 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
         // Compute the displacement gradient and B matrices
         if(d_usePlasticity || d_useDamage){
           interpolator->findCellAndShapeDerivatives(px[idx], ni, d_S, 
-                                                    pSize[idx],pDefGrad[idx]);
+                                                    pSize[idx], pDefGrad_old[idx]);
       
-          computeGradAndBmats(pDispGrad,ni,d_S, oodx, gDisp, l2g,B, Bnl, dof);
+          gradComp.computeBmats(ni, d_S, oodx, l2g, B, Bnl, dof);
         }
 
         // Compute the deformation gradient increment using the pDispGrad
         // Update the deformation gradient tensor to its time n+1 value.
         double J;
 
-        pDefGradInc = pDispGrad + Identity;
+        pDefGradInc = pDefGrad_new[idx]*pDefGrad_old[idx].Inverse();
         if(d_usePlasticity || d_useDamage) {
-          pDefGrad_new[idx] = pDefGradInc*pDefGrad[idx];
           J = pDefGrad_new[idx].Determinant();
 
           // Compute BeBar
@@ -1809,10 +1609,6 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
           pBeBar_new[idx] = bElBar_new;
         }
         
-        // Update the particle volume
-        volold = (pMass[idx]/rho_orig);
-        volnew = volold*J;
-
         // tauDev is equal to the shear modulus times dev(bElBar)
         double mubar   = onethird*pBeBar_new[idx].Trace()*shear;
         Matrix3 shrTrl = (pBeBar_new[idx]*shear - Identity*mubar);
@@ -1847,7 +1643,7 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
         
           // Fill in the B and Bnl matrices and the dof vector
           interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S, pSize[idx],
-                                                    pDefGrad[idx]);
+                                                    pDefGrad_new[idx]);
           loadBMats(l2g,dof,B,Bnl,d_S,ni,oodx);
           // kmat = B.transpose()*D*B*volold
           BtDB(B,D,kmat);
@@ -1887,7 +1683,7 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
             
           // Fill in the B and Bnl matrices and the dof vector
           interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S, pSize[idx],
-                                                    pDefGrad[idx]);
+                                                    pDefGrad_new[idx]);
           loadBMatsGIMP(l2g,dof,B,Bnl,d_S,ni,oodx);
           // kmat = B.transpose()*D*B*volold
           BtDBGIMP(B,D,kmat);
@@ -1901,7 +1697,6 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
           }
           solver->fillMatrix(nDOF,dof,nDOF,dof,v);
         }
-        pVolume_new[idx] = volnew;
       }
       delete interpolator;
     } // end rigid
@@ -1963,10 +1758,6 @@ void HyperelasticPlastic::addParticleState(std::vector<const VarLabel*>& from,
   // Universal
   from.push_back(bElBarLabel);
   to.push_back(bElBarLabel_preReloc);
-  if (flag->d_integrator != MPMFlags::Implicit) {
-    from.push_back(pDeformRateLabel);
-    to.push_back(pDeformRateLabel_preReloc);
-  }
 }
 
 // Damage requirements //
@@ -2208,13 +1999,16 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
   constParticleVariable<long64>  pParticleID;
   constParticleVariable<Point>   pX;
   constParticleVariable<Matrix3> pSize;
-  constParticleVariable<Matrix3> pDefGrad, pBeBar;
-  constNCVariable<Vector>        gDisp;
+  constParticleVariable<Matrix3> pDefGrad_old, pBeBar;
+
+  constParticleVariable<double>  pVolume_new;
+  constParticleVariable<Matrix3> pDefGrad_new, pDispGrad_new;
+
   ParticleVariable<int>          pLocalized_new;
   ParticleVariable<double>       pTimeOfLoc_new;
   ParticleVariable<double>       pFailureStrain_new, pDamage_new;
-  ParticleVariable<double>       pVolume_new, pdTdt, pPlasticStrain_new;
-  ParticleVariable<Matrix3>      pDefGrad_new, pBeBar_new, pStress_new;
+  ParticleVariable<double>       pdTdt, pPlasticStrain_new;
+  ParticleVariable<Matrix3>      pBeBar_new, pStress_new;
 
   // Local variables 
   Matrix3 dispGrad(0.0), tauDev(0.0), defGradInc(0.0);
@@ -2268,16 +2062,16 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
     old_dw->get(pMass,                    lb->pMassLabel,               pset);
     old_dw->get(pX,                       lb->pXLabel,                  pset);
     old_dw->get(pSize,                    lb->pSizeLabel,               pset);
-    old_dw->get(pDefGrad,                 lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDefGrad_old,             lb->pDefGradLabel,            pset);
     old_dw->get(pBeBar,                   bElBarLabel,                  pset);
     
+    new_dw->get(pVolume_new,              lb->pVolumeLabel_preReloc,    pset);
+    new_dw->get(pDefGrad_new,             lb->pDefGradLabel_preReloc,   pset);
+    new_dw->get(pDispGrad_new,            lb->pDispGradLabel_preReloc,  pset);
+
     // Allocate space for updated particle variables
-    new_dw->allocateAndPut(pVolume_new, 
-                           lb->pVolumeDeformedLabel,              pset);
     new_dw->allocateAndPut(pdTdt, 
                            lb->pdTdtLabel_preReloc,               pset);
-    new_dw->allocateAndPut(pDefGrad_new,
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pBeBar_new, 
                            bElBarLabel_preReloc,                  pset);
     new_dw->allocateAndPut(pStress_new,        
@@ -2289,32 +2083,9 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
         // Assign zero internal heating by default - modify if necessary.
         pdTdt[idx]        = 0.0;
         pStress_new[idx]  = Matrix3(0.0);
-        pDefGrad_new[idx] = Identity;
-        pVolume_new[idx]  = pMass[idx]/rho_orig;
       }
     } else { /*if(!matl->getIsRigid()) */
-      // Compute the displacement gradient and the deformation gradient
-      ParticleInterpolator* interpolator = flag->d_interpolator->clone(patch);
-      vector<IntVector> ni(interpolator->size());
-      vector<Vector> d_S(interpolator->size());
-      if(flag->d_doGridReset){
-        constNCVariable<Vector> dispNew;
-        new_dw->get(dispNew,lb->dispNewLabel,dwi,patch, gac, 1);
-        computeDeformationGradientFromIncrementalDisplacement(dispNew, pset, pX,
-                                                              pDefGrad,
-                                                              pDefGrad_new,
-                                                              dx, pSize,
-                                                              interpolator);
-      }
-      else /*if(!flag->d_doGridReset)*/{
-        constNCVariable<Vector> gdisplacement;
-        new_dw->get(gdisplacement, lb->gDisplacementLabel,dwi,patch,gac,1);
-        computeDeformationGradientFromTotalDisplacement(gdisplacement,pset, pX, 
-                                                        pDefGrad_new,
-                                                        pDefGrad,
-                                                        dx, pSize,interpolator);
-      }
-      
+
       // Unused because no "active stress carried over from CNHImplicit    
       double time = d_sharedState->getElapsedTime();
     
@@ -2324,16 +2095,14 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
         // Assign zero internal heating by default - modify if necessary.
         pdTdt[idx]  = 0.0;
       
-        defGradInc  = dispGrad + Identity;         
+        defGradInc  = pDispGrad_new[idx] + Identity;         
         double Jinc = defGradInc.Determinant();
       
         // Update the deformation gradient tensor to its time n+1 value.
-        defGrad  = defGradInc*pDefGrad[idx];
         double J = pDefGrad_new[idx].Determinant();
 
         if(d_usePlasticity || d_useDamage) {
-          J = defGrad.Determinant();
-          pDefGrad_new[idx] = defGrad;
+          J = pDefGrad_new[idx].Determinant();
         
           // Compute trial BeBar
           relDefGradBar = defGradInc/cbrt(Jinc);
@@ -2355,7 +2124,6 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
         
         // Compute the deformed volume 
         double rho_cur   = rho_orig/J;
-        pVolume_new[idx] = (pMass[idx]/rho_orig)*J;
 
         double IEl   = onethird*beBarTrial.Trace();
         double muBar = IEl*shear;
@@ -2371,7 +2139,6 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
         // Check for plastic loading
         double alpha = 0.0;
         if(d_usePlasticity){
-          pVolume_new[idx]=pMass[idx]/rho_cur;  // To prevent Gold Standards from Crapping
           alpha = pPlasticStrain[idx];
           p = 0.5*bulk*(J - 1.0/J);
         }
@@ -2409,13 +2176,13 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
         // Modify the stress if particle has damaged/failed
         if(d_useDamage){
 	  if (d_brittleDamage) {
-             updateDamageAndModifyStress(defGrad, pFailureStrain[idx],
+             updateDamageAndModifyStress(pDefGrad_new[idx], pFailureStrain[idx],
                                          pFailureStrain_new[idx],
                                          pVolume_new[idx], pDamage[idx],
                                          pDamage_new[idx], pStress_new[idx],
                                          pParticleID[idx]);
 	  } else {
-	    updateFailedParticlesAndModifyStress(defGrad, pFailureStrain[idx], 
+	    updateFailedParticlesAndModifyStress(pDefGrad_new[idx], pFailureStrain[idx], 
                                                  pLocalized[idx],
                                                  pLocalized_new[idx],
                                                  pTimeOfLoc[idx],
@@ -2440,7 +2207,6 @@ void HyperelasticPlastic::computeStressTensorImplicit(const PatchSubset* patches
           flag->d_reductionVars->strainEnergy) {
         new_dw->put(sum_vartype(se), lb->StrainEnergyLabel);
       }
-      delete interpolator;
     } // End rigid else
   } // End Patch For Loop
 }

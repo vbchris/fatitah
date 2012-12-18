@@ -69,20 +69,18 @@ ImplicitCM::initSharedDataForImplicit(const Patch* patch,
   Matrix3 zero(0.);
   ParticleSubset* pset = new_dw->getParticleSubset(matl->getDWIndex(), patch);
 
-//  ParticleVariable<double>  pdTdt;
-  ParticleVariable<Matrix3> pDefGrad, pStress;
+  //ParticleVariable<double>  pdTdt;
+  ParticleVariable<Matrix3> pStress;
 
-//  new_dw->allocateAndPut(pdTdt,       d_lb->pdTdtLabel,               pset);
-  new_dw->allocateAndPut(pDefGrad,    d_lb->pDeformationMeasureLabel, pset);
-  new_dw->allocateAndPut(pStress,     d_lb->pStressLabel,             pset);
+  //new_dw->allocateAndPut(pdTdt,       d_lb->pdTdtLabel,    pset);
+  new_dw->allocateAndPut(pStress,     d_lb->pStressLabel,  pset);
 
   // To fix : For a material that is initially stressed we need to
   // modify the stress tensors to comply with the initial stress state
   ParticleSubset::iterator iter = pset->begin();
   for(; iter != pset->end(); iter++){
     particleIndex idx = *iter;
-//    pdTdt[idx] = 0.0;
-    pDefGrad[idx] = I;
+    //pdTdt[idx] = 0.0;
     pStress[idx] = zero;
   }
 }
@@ -110,18 +108,14 @@ ImplicitCM::addSharedCRForImplicit(Task* task,
   task->requires(Task::OldDW, d_lb->pMassLabel,        matlset, gnone);
   task->requires(Task::OldDW, d_lb->pVolumeLabel,      matlset, gnone);
   task->requires(Task::OldDW, d_lb->pTemperatureLabel, matlset, gnone);
-  task->requires(Task::OldDW, d_lb->pDeformationMeasureLabel,
-                                                       matlset, gnone);
+  task->requires(Task::OldDW, d_lb->pDefGradLabel,     matlset, gnone);
   task->requires(Task::OldDW, d_lb->pStressLabel,      matlset, gnone);
-  if(reset){
-    task->requires(Task::NewDW, d_lb->dispNewLabel,      matlset,gac,1);
-  } else {
-    task->requires(Task::NewDW, d_lb->gDisplacementLabel,matlset,gac,1);
-  }
+
+  task->requires(Task::NewDW, d_lb->pDefGradLabel_preReloc,  matlset, gnone);
+  task->requires(Task::NewDW, d_lb->pDispGradLabel_preReloc, matlset, gnone);
+  task->requires(Task::NewDW, d_lb->pVolumeLabel_preReloc,   matlset, gnone);
 
   task->computes(d_lb->pStressLabel_preReloc,             matlset);  
-  task->computes(d_lb->pDeformationMeasureLabel_preReloc, matlset);
-  task->computes(d_lb->pVolumeDeformedLabel,              matlset);
   task->computes(d_lb->pdTdtLabel_preReloc,               matlset);
 }
 
@@ -152,18 +146,14 @@ ImplicitCM::addSharedCRForImplicit(Task* task,
     task->requires(Task::ParentOldDW, d_lb->pMassLabel,        matlset, gnone);
     task->requires(Task::ParentOldDW, d_lb->pVolumeLabel,      matlset, gnone);
     task->requires(Task::ParentOldDW, d_lb->pTemperatureLabel, matlset, gnone);
-    task->requires(Task::ParentOldDW, d_lb->pDeformationMeasureLabel,
-                                                               matlset, gnone);
+    task->requires(Task::ParentOldDW, d_lb->pDefGradLabel,     matlset, gnone);
+
+    task->requires(Task::NewDW, d_lb->pDefGradLabel_preReloc,   matlset, gnone);
+    task->requires(Task::NewDW, d_lb->pDispGradLabel_preReloc,  matlset, gnone);
+    task->requires(Task::NewDW, d_lb->pVolumeLabel_preReloc,    matlset, gnone);
 
     task->computes(d_lb->pStressLabel_preReloc,                 matlset);  
-    task->computes(d_lb->pDeformationMeasureLabel_preReloc,     matlset);
-    task->computes(d_lb->pVolumeDeformedLabel,                  matlset);
     task->computes(d_lb->pdTdtLabel_preReloc,                   matlset);
-    if(reset){
-      task->requires(Task::OldDW,     d_lb->dispNewLabel,      matlset, gac,1);
-    }else {
-      task->requires(Task::OldDW,     d_lb->gDisplacementLabel,matlset, gac,1);
-    }
   }
   else{
     // For scheduleIterate
@@ -172,7 +162,8 @@ ImplicitCM::addSharedCRForImplicit(Task* task,
     task->requires(Task::OldDW, d_lb->pMassLabel,               matlset, gnone);
     task->requires(Task::OldDW, d_lb->pVolumeLabel,             matlset, gnone);
     task->requires(Task::OldDW, d_lb->pTemperatureLabel,        matlset, gnone);
-    task->requires(Task::OldDW, d_lb->pDeformationMeasureLabel, matlset, gnone);
+    task->requires(Task::OldDW, d_lb->pDefGradLabel,            matlset, gnone);
+    task->requires(Task::OldDW, d_lb->pDispGradLabel,           matlset, gnone);
   }
 
 }
@@ -205,23 +196,16 @@ ImplicitCM::carryForwardSharedDataImplicit(ParticleSubset* pset,
   constParticleVariable<double>  pMass;
   constParticleVariable<Matrix3> pDefGrad_old;
   old_dw->get(pMass,            d_lb->pMassLabel,               pset);
-  old_dw->get(pDefGrad_old,     d_lb->pDeformationMeasureLabel, pset);
                                                                                 
-  ParticleVariable<double>  pIntHeatRate_new, pVol_Def_new;
-  ParticleVariable<Matrix3> pDefGrad_new, pStress_new;
-  new_dw->allocateAndPut(pVol_Def_new,     d_lb->pVolumeDeformedLabel,   pset);
+  ParticleVariable<double>  pIntHeatRate_new;
+  ParticleVariable<Matrix3> pStress_new;
   new_dw->allocateAndPut(pIntHeatRate_new, d_lb->pdTdtLabel_preReloc,    pset);
-  new_dw->allocateAndPut(pDefGrad_new,  d_lb->pDeformationMeasureLabel_preReloc,
-                         pset);
   new_dw->allocateAndPut(pStress_new,   d_lb->pStressLabel_preReloc, pset);
                                                                                 
   ParticleSubset::iterator iter = pset->begin();
   for(; iter != pset->end(); iter++){
     particleIndex idx = *iter;
-    pVol_Def_new[idx] = (pMass[idx]/rho_orig);
     pIntHeatRate_new[idx] = 0.0;
-    pDefGrad_new[idx] = pDefGrad_old[idx];
-    //pDefGrad_new[idx] = Id;
     pStress_new[idx] = Zero;
   }
 }

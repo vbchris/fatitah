@@ -77,7 +77,7 @@ if(!mms_type.empty()) {
   	Matrix3 zero(0.);
   	ParticleSubset* pset = new_dw->getParticleSubset(matl->getDWIndex(), patch);
                                                                                 
-  	ParticleVariable<double>  pdTdt;
+  	ParticleVariable<double>  pdTdt, pVolume;
   	ParticleVariable<Matrix3> pDefGrad, pStress;
   	constParticleVariable<Point>  px;
   	constParticleVariable<Vector>  pdisp;
@@ -87,8 +87,10 @@ if(!mms_type.empty()) {
 
   	double A=0.05;
                                                                                 
+  	new_dw->getModifiable(pVolume,      lb->pVolumeLabel,             pset);
+  	new_dw->getModifiable(pDefGrad,     lb->pDefGradLabel,            pset);
+
   	new_dw->allocateAndPut(pdTdt,       lb->pdTdtLabel,               pset);
-  	new_dw->allocateAndPut(pDefGrad,    lb->pDeformationMeasureLabel, pset);
   	new_dw->allocateAndPut(pStress,     lb->pStressLabel,             pset);
   	new_dw->get(px,                     lb->pXLabel,                  pset);
   	new_dw->get(pdisp,                  lb->pDispLabel,               pset);
@@ -106,6 +108,8 @@ if(!mms_type.empty()) {
     	pDefGrad[idx] = Matrix3(Fxx,0.,0.,0.,Fyy,0.,0.,0.,Fzz);
 
     	double J=pDefGrad[idx].Determinant();
+        pVolume[idx] *= J;
+
     	Matrix3 Shear= (pDefGrad[idx]*pDefGrad[idx].Transpose() - I)*mu;
 
     	double p = lambda*log(J);
@@ -226,18 +230,18 @@ void CNH_MMS::computeStressTensor(const PatchSubset* patches,
     old_dw->get(px,                  lb->pXLabel,                  pset);
     old_dw->get(pmass,               lb->pMassLabel,               pset);
     old_dw->get(pvelocity,           lb->pVelocityLabel,           pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
     old_dw->get(psize,               lb->pSizeLabel,               pset);
     
     new_dw->allocateAndPut(pstress,     lb->pStressLabel_preReloc, pset);
-    new_dw->allocateAndPut(pvolume_new, lb->pVolumeLabel_preReloc, pset);
+    new_dw->getModifiable(pvolume_new,  lb->pVolumeLabel_preReloc, pset);
     new_dw->allocateAndPut(pdTdt,       lb->pdTdtLabel_preReloc,   pset);
     if(flag->d_with_color) {
       old_dw->get(pcolor,      lb->pColorLabel,  pset);
     }
 
-    new_dw->allocateAndPut(deformationGradient_new,
-                                  lb->pDeformationMeasureLabel_preReloc, pset);
+    new_dw->getModifiable(deformationGradient_new,
+                                  lb->pDefGradLabel_preReloc, pset);
 
     old_dw->get(delT, lb->delTLabel, getLevel(patches));
 
@@ -248,25 +252,6 @@ void CNH_MMS::computeStressTensor(const PatchSubset* patches,
     double mu =   shear;
 
     double rho_orig = matl->getInitialDensity();
-
-    if(flag->d_doGridReset){
-      constNCVariable<Vector> gvelocity;
-      new_dw->get(gvelocity, lb->gVelocityStarLabel,dwi,patch,gac,NGN);
-      computeDeformationGradientFromVelocity(gvelocity,
-                                             pset, px, psize,
-                                             deformationGradient,
-                                             deformationGradient_new,
-                                             dx, interpolator, delT);
-    }
-    else if(!flag->d_doGridReset){
-      constNCVariable<Vector> gdisplacement;
-      new_dw->get(gdisplacement, lb->gDisplacementLabel,dwi,patch,gac,NGN);
-      computeDeformationGradientFromDisplacement(gdisplacement,
-                                                 pset, px, psize,
-                                                 deformationGradient_new,
-                                                 deformationGradient,
-                                                 dx, interpolator);
-    }
 
     for(ParticleSubset::iterator iter = pset->begin();
         iter != pset->end(); iter++){

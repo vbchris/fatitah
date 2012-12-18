@@ -33,14 +33,7 @@ namespace Uintah {
     // Make a clone of the gradient computer
     virtual GradientComputer* clone() = 0;
 
-  protected:
-    
-    /*! Calculate gradient of a vector field for 8 noded interpolation */
-    void computeGrad(Matrix3& grad,
-                     vector<IntVector>& ni,
-                     vector<Vector>& d_S,
-                     const double* oodx, 
-                     constNCVariable<Vector>& gVec);
+  public:
 
     /*! Calculate gradient of vector field for 8 noded interpolation, B matrix
         for Kmat and B matrix for Kgeo */
@@ -53,6 +46,23 @@ namespace Uintah {
                              double B[6][24],
                              double Bnl[3][24],
                              int* dof);
+
+    void computeBmats(vector<IntVector>& ni,
+                      vector<Vector>& d_S,
+                      const double* oodx, 
+                      const Array3<int>& l2g,
+                      double B[6][24],
+                      double Bnl[3][24],
+                      int* dof);
+
+  protected:
+    
+    /*! Calculate gradient of a vector field for 8 noded interpolation */
+    void computeGrad(Matrix3& grad,
+                     vector<IntVector>& ni,
+                     vector<Vector>& d_S,
+                     const double* oodx, 
+                     constNCVariable<Vector>& gVec);
 
     MPMFlags* flag;
 
