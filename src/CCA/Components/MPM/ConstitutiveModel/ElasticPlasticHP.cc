@@ -767,7 +767,7 @@ ElasticPlasticHP::computeStressTensor(const PatchSubset* patches,
     // Note : The deformation gradient from the old datawarehouse is no
     // longer used, but it is updated for possible use elsewhere
     constParticleVariable<Matrix3>  pDeformGrad;
-    old_dw->get(pDeformGrad, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDeformGrad, lb->pDefGradLabel, pset);
 
     // Get the particle location, particle size, particle mass, particle volume
     constParticleVariable<Point>  px;
@@ -835,14 +835,16 @@ ElasticPlasticHP::computeStressTensor(const PatchSubset* patches,
 
     // Create and allocate arrays for storing the updated information
     // GLOBAL
-    ParticleVariable<Matrix3> pDeformGrad_new, pStress_new;
+    ParticleVariable<Matrix3> tensorL;
+    new_dw->getModifiable(tensorL,          lb->pVelGradLabel_preReloc, pset);
+
+    ParticleVariable<Matrix3> pDeformGrad_new;
     ParticleVariable<double> pVolume_deformed;
-    new_dw->allocateAndPut(pDeformGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
-    new_dw->allocateAndPut(pStress_new,      
-                           lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVolume_deformed, 
-                           lb->pVolumeLabel_preReloc,             pset);
+    new_dw->getModifiable(pDeformGrad_new,  lb->pDefGradLabel_preReloc, pset);
+    new_dw->getModifiable(pVolume_deformed, lb->pVolumeLabel_preReloc, pset);
+
+    ParticleVariable<Matrix3> pStress_new;
+    new_dw->allocateAndPut(pStress_new, lb->pStressLabel_preReloc, pset);
 
     // LOCAL
     ParticleVariable<Matrix3> pRotation_new;
@@ -890,135 +892,40 @@ ElasticPlasticHP::computeStressTensor(const PatchSubset* patches,
       // Stage 1:
       //-----------------------------------------------------------------------
       // Calculate the velocity gradient (L) from the grid velocity
-
-      Matrix3 tensorL(0.0);
-      short pgFld[27];
-      if (flag->d_fracture) {
-        for(int k=0; k<27; k++){
-          pgFld[k]=pgCode[idx][k];
-        }
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDeformGrad[idx]);
-        computeVelocityGradient(tensorL,ni,d_S,oodx,pgFld,gVelocity,GVelocity);
-      } else {
-        if(!flag->d_axisymmetric){
-         // Get the node indices that surround the cell
-         interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDeformGrad[idx]);
-
-         computeVelocityGradient(tensorL,ni,d_S, oodx, gVelocity);
-        } else {  // axi-symmetric kinematics
-         // Get the node indices that surround the cell
-         interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                  psize[idx],pDeformGrad[idx]);
-         // x -> r, y -> z, z -> theta
-         computeAxiSymVelocityGradient(tensorL,ni,d_S,S,oodx,gVelocity,px[idx]);
-        }
-      }
-
       // Carry forward the pLocalized tag for now, alter below
       pLocalized_new[idx] = pLocalized[idx];
 
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient F_n^np1 = dudx * dt + Identity
       // Update the deformation gradient tensor to its time n+1 value.
-      double J;
-      Matrix3 tensorFinc;
-#ifndef SUB_CYCLE_F
-      tensorFinc           = tensorL*delT + one;
-      tensorF_new          = tensorFinc*pDeformGrad[idx];
-      pDeformGrad_new[idx] = tensorF_new;
-      J = tensorF_new.Determinant();
-
-      if(d_setStressToZero && pLocalized[idx]){
-        pDeformGrad_new[idx] = pDeformGrad[idx];
-        J = pDeformGrad[idx].Determinant();
-      }
-      
-      //__________________________________
-      //  bulletproofing
-      if(pLocalized[idx] && J <=0.0){
-        pDeformGrad_new[idx] = one;
-        tensorF_new = one;
-        J = 1.0;
-        cerr << " WARNING: ElasticPlasticHP: "<< endl;
-        cerr << " neg J in particle " << pParticleID[idx] << endl;
-        cerr << " reseting the deformation and moving on, " << endl;
-        cerr << " but the code is still probably going to crash soon." << endl;
-      }
-
-      // Check 1: Look at Jacobian
-      if (!(J > 0.0)) {
-        cerr << "**ERROR**: ElasticPlasticHP: " << endl;
-        cerr << " Negative Jacobian of deformation gradient" 
-             << " in particle " << pParticleID[idx] << endl;
-        cerr << " Consider using the compile time SUB_CYCLE_F option" << endl;
-        cerr << "l =     " << tensorL << endl;
-        cerr << "F_old = " << pDeformGrad[idx] << endl;
-        cerr << "J_old = " << pDeformGrad[idx].Determinant() << endl;
-        cerr << "F_inc = " << tensorFinc << endl;
-        cerr << "F_new = " << tensorF_new << endl;
-        cerr << "J =     " << J << endl;
-        cerr << "Temp =  " << pTemperature[idx] << endl;
-        cerr << "Tm =    " << Tm << endl;
-        cerr << "DWI =   " << matl->getDWIndex() << endl;
-        cerr << "X =     " << px[idx] << endl;
-        throw InternalError("ElasticPlasticHP: Negative Jacobian",
-                                               __FILE__,__LINE__);
-      }
-#endif
-
-#ifdef SUB_CYCLE_F
-        Matrix3 F=pDeformGrad[idx];
-        double Lnorm_dt = tensorL.Norm()*delT;
-        int num_scs = min(max(1,2*((int) Lnorm_dt)),10000);
-        if(num_scs > 1000){
-          cout << "NUM_SCS = " << num_scs << endl;
-        }
-        double dtsc = delT/(double (num_scs));
-        Matrix3 OP_tensorL_DT = one + tensorL*dtsc;
-        for(int n=0;n<num_scs;n++){
-          F=OP_tensorL_DT*F;
-//          if(num_scs >1000){
-//          cerr << "n = " << n << endl;
-//          cerr << "F = " << F << endl;
-//          cerr << "J = " << F.Determinant() << endl << endl;
-//          }
-        }
-        pDeformGrad_new[idx]=F;
-        tensorF_new=F;
-        J=pDeformGrad_new[idx].Determinant();
-        if(!(J > 0.) || J > 1.e5){
+      double J = pDeformGrad_new[idx].Determinant();
+      if(!(J > 0.) || J > 1.e5){
           cerr << "**ERROR** Negative (or huge) Jacobian of deformation gradient."
                << "  Deleting particle " << pParticleID[idx] << endl;
-          cerr << "l = " << tensorL << endl;
+          cerr << "l = " << tensorL[idx] << endl;
           cerr << "F_old = " << pDeformGrad[idx] << endl;
           cerr << "J_old = " << pDeformGrad[idx].Determinant() << endl;
-          cerr << "F_inc = " << tensorFinc << endl;
-          cerr << "F_new = " << tensorF_new << endl;
+          cerr << "F_new = " << pDeformGrad_new[idx] << endl;
           cerr << "J = " << J << endl;
           cerr << "Temp = " << pTemperature[idx] << endl;
           cerr << "Tm = " << Tm << endl;
           cerr << "DWI = " << matl->getDWIndex() << endl;
           cerr << "X = " << px[idx] << endl;
-          cerr << "L.norm()*dt = " << tensorL.Norm()*delT << endl;
-          cerr << "numscs " << num_scs << endl;
+          cerr << "L.norm()*dt = " << tensorL[idx].Norm()*delT << endl;
           pLocalized_new[idx]=-999;
 
           tensorF_new=pDeformGrad[idx];
           pDeformGrad_new[idx]=pDeformGrad[idx];
           tensorD=zero;
-          tensorL=zero;
-        }
-#endif
+          tensorL[idx]=zero;
+      }
 
       // Calculate the current density and deformed volume
       double rho_cur = rho_0/J;
-      pVolume_deformed[idx]=pMass[idx]/rho_cur;
 
       // Compute rate of change of specific volume
       double Vdot = (pVolume_deformed[idx] - pVolume[idx])/(pMass[idx]*delT);
 
       // Calculate rate of deformation tensor (D)
-      tensorD = (tensorL + tensorL.Transpose())*0.5;
+      tensorD = (tensorL[idx] + tensorL[idx].Transpose())*0.5;
 
       // Compute polar decomposition of F (F = RU)
       pDeformGrad[idx].polarDecompositionRMB(tensorU, tensorR);
@@ -1808,7 +1715,7 @@ ElasticPlasticHP::computeStressTensorImplicit(const PatchSubset* patches,
     old_dw->get(pTempPrev,    lb->pTempPreviousLabel,       pset); 
     old_dw->get(px,           lb->pXLabel,                  pset);
     old_dw->get(psize,        lb->pSizeLabel,               pset);
-    old_dw->get(pDeformGrad,  lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDeformGrad,  lb->pDefGradLabel,            pset);
     old_dw->get(pStress,      lb->pStressLabel,             pset);
 
     // GET LOCAL DATA 
@@ -1821,14 +1728,13 @@ ElasticPlasticHP::computeStressTensorImplicit(const PatchSubset* patches,
     old_dw->get(pLocalized,          pLocalizedLabel,          pset);
     old_dw->get(pEnergy,             pEnergyLabel,             pset);
 
+    new_dw->getModifiable(pDeformGrad_new,  lb->pDefGradLabel_preReloc, pset);
+    new_dw->getModifiable(pVolume_deformed, lb->pVolumeLabel_preReloc,  pset);
+
     // Create and allocate arrays for storing the updated information
     // GLOBAL
-    new_dw->allocateAndPut(pDeformGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pStress_new,      
                            lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVolume_deformed, 
-                           lb->pVolumeDeformedLabel,              pset);
     new_dw->allocateAndPut(pdTdt, lb->pdTdtLabel_preReloc,   pset);
 
     // LOCAL
@@ -1895,17 +1801,7 @@ ElasticPlasticHP::computeStressTensorImplicit(const PatchSubset* patches,
       pdTdt[idx] = 0.0;
       pEnergy_new[idx] = pEnergy[idx];
 
-      // Calculate the displacement gradient
-      interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDeformGrad[idx]);
-      computeGrad(DispGrad, ni, d_S, oodx, gDisp);
-
-      // Compute the deformation gradient increment
-      incDefGrad = DispGrad + One;
-      //double Jinc = incDefGrad.Determinant();
-
       // Update the deformation gradient
-      DefGrad = incDefGrad*pDeformGrad[idx];
-      pDeformGrad_new[idx] = DefGrad;
       double J = DefGrad.Determinant();
 
       // Check 1: Look at Jacobian
@@ -1918,8 +1814,6 @@ ElasticPlasticHP::computeStressTensorImplicit(const PatchSubset* patches,
       // Calculate the current density and deformed volume
       double rho_cur = rho_0/J;
       double volold = (pMass[idx]/rho_0);
-
-      pVolume_deformed[idx]=volold*J;
 
       // Compute polar decomposition of F (F = VR)
       // (**NOTE** This is being done to provide reasonable starting 
@@ -2257,7 +2151,7 @@ ElasticPlasticHP::computeStressTensorImplicit(const PatchSubset* patches,
     parent_old_dw->get(px,           lb->pXLabel,                  pset);
     parent_old_dw->get(psize,        lb->pSizeLabel,               pset);
     parent_old_dw->get(pMass,        lb->pMassLabel,               pset);
-    parent_old_dw->get(pDeformGrad,  lb->pDeformationMeasureLabel, pset);
+    parent_old_dw->get(pDeformGrad,  lb->pDefGradLabel,            pset);
     parent_old_dw->get(pStress,      lb->pStressLabel,             pset);
 
     // GET LOCAL DATA 
@@ -2265,14 +2159,13 @@ ElasticPlasticHP::computeStressTensorImplicit(const PatchSubset* patches,
     parent_old_dw->get(pPlasticStrainRate,  pPlasticStrainRateLabel, pset);
     parent_old_dw->get(pPorosity,           pPorosityLabel,          pset);
 
+    new_dw->getModifiable(pDeformGrad_new,  lb->pDefGradLabel_preReloc, pset);
+    new_dw->getModifiable(pVolume_deformed, lb->pVolumeLabel_preReloc,  pset);
+
     // Create and allocate arrays for storing the updated information
     // GLOBAL
-    new_dw->allocateAndPut(pDeformGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pStress_new,      
                            lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVolume_deformed, 
-                           lb->pVolumeDeformedLabel,              pset);
 
     // LOCAL
     new_dw->allocateAndPut(pPlasticStrain_new,      

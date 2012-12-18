@@ -294,10 +294,12 @@ ViscoSCRAMHotSpot::computeStressTensor(const PatchSubset* patches,
   constParticleVariable<Matrix3> pDefGrad, pSig;
   constParticleVariable<double>  pHotSpotT1, pHotSpotT2;
   constParticleVariable<double>  pHotSpotPhi1, pHotSpotPhi2;
-  constNCVariable<Vector>        gvelocity, Gvelocity;
 
-  ParticleVariable<double>    pVol_new, pIntHeatRate_new;
-  ParticleVariable<Matrix3>   pDefGrad_new, pSig_new;
+  constParticleVariable<double>  pVol_new;
+  constParticleVariable<Matrix3> pDefGrad_new, pVelGrad_new;
+
+  ParticleVariable<double>    pIntHeatRate_new;
+  ParticleVariable<Matrix3>   pSig_new;
   ParticleVariable<double>    pVolHeatRate_new, pVeHeatRate_new;
   ParticleVariable<double>    pCrHeatRate_new, pChHeatRate_new;
   ParticleVariable<double>    pCrackRadius_new, pStrainRate_new;
@@ -345,26 +347,21 @@ ViscoSCRAMHotSpot::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pTemp,         lb->pTemperatureLabel,        pset);
     old_dw->get(psize,         lb->pSizeLabel,               pset);
     old_dw->get(pVel,          lb->pVelocityLabel,           pset);
-    old_dw->get(pDefGrad,      lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDefGrad,      lb->pDefGradLabel,            pset);
     old_dw->get(pSig,          lb->pStressLabel,             pset);
     old_dw->get(pCrackRadius,  pCrackRadiusLabel,            pset);
     old_dw->get(pHotSpotT1,    pHotSpotT1Label,              pset);
     old_dw->get(pHotSpotT2,    pHotSpotT2Label,              pset);
     old_dw->get(pHotSpotPhi1,  pHotSpotPhi1Label,            pset);
     old_dw->get(pHotSpotPhi2,  pHotSpotPhi2Label,            pset);
-    if (flag->d_fracture) {
-      new_dw->get(pgCode, lb->pgCodeLabel, pset);
-      new_dw->get(Gvelocity,  lb->GVelocityStarLabel, dwi, patch, gac, NGN);
-    }
-    new_dw->get(gvelocity,    lb->gVelocityStarLabel, dwi, patch, gac, NGN);
+
+    new_dw->get(pVol_new,      lb->pVolumeLabel_preReloc,    pset);
+    new_dw->get(pDefGrad_new,  lb->pDefGradLabel_preReloc,   pset);
+    new_dw->get(pVelGrad_new,  lb->pVelGradLabel_preReloc,   pset);
 
     // Allocate arrays for the updated particle data for the current patch
-    new_dw->allocateAndPut(pVol_new,         
-                           lb->pVolumeLabel_preReloc,             pset);
     new_dw->allocateAndPut(pIntHeatRate_new, 
                            lb->pdTdtLabel_preReloc,               pset);
-    new_dw->allocateAndPut(pDefGrad_new,     
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pSig_new,      
                            lb->pStressLabel_preReloc,             pset);
     new_dw->allocateAndPut(pVolHeatRate_new, 
@@ -415,33 +412,9 @@ ViscoSCRAMHotSpot::computeStressTensor(const PatchSubset* patches,
       double K = (2.0*G*(1.0+nu))/(3.0*(1.0-2.0*nu));
       //double alphaK = 3.0*K*(alpha*variation);
 
-      velGrad.set(0.0);
-      short pgFld[27];
-      if (flag->d_fracture) {
-        for(int k=0; k<27; k++){
-          pgFld[k]=pgCode[idx][k];
-        }
-        // Compute the velocity gradient
-        interpolator->findCellAndShapeDerivatives(px[idx], ni, d_S, psize[idx],pDefGrad[idx]);
-        computeVelocityGradient(velGrad,ni,d_S,oodx,pgFld,gvelocity,Gvelocity);
-      } else {
-        if(!flag->d_axisymmetric){
-         // Get the node indices that surround the cell
-         interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDefGrad[idx]);
-
-         computeVelocityGradient(velGrad,ni,d_S, oodx, gvelocity);
-        } else {  // axi-symmetric kinematics
-         // Get the node indices that surround the cell
-         interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                                    psize[idx],pDefGrad[idx]);
-         // x -> r, y -> z, z -> theta
-         computeAxiSymVelocityGradient(velGrad,ni,d_S,S,oodx,gvelocity,px[idx]);
-        }
-      }
-
       // Calculate rate of deformation, deviatoric rate of deformation
       // and the effective deviatoric strain rate
-      pDefRate = (velGrad + velGrad.Transpose())*.5;
+      pDefRate = (pVelGrad_new[idx] + pVelGrad_new[idx].Transpose())*.5;
       pStrainRate_new[idx] = pDefRate.Norm();
 
       if (dbg.active())
@@ -503,18 +476,11 @@ ViscoSCRAMHotSpot::computeStressTensor(const PatchSubset* patches,
       //dbg << " Mean Stress (new) = " << sig_m_new << endl;
       //dbg << "Total Stress (new) = " << endl << pSig_new[idx] << endl;
 
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient (F_n^np1 = dudx * dt + Id)
-      pDefGradInc = velGrad * delT + Id;
-      double Jinc = pDefGradInc.Determinant();
-
       // Update the deformation gradient tensor to its time n+1 value.
-      pDefGrad_new[idx] = pDefGradInc*pDefGrad[idx];
       double J = pDefGrad_new[idx].Determinant();
 
       // Compute the current mass density and volume
       double rho_cur = rho_0/J;
-      pVol_new[idx]=Jinc*pVol[idx];
 
       // Determine the bulk temperature change at a material point
       // assuming adiabatic conditions

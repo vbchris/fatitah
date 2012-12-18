@@ -94,13 +94,11 @@ void HypoElasticImplicit::initializeCMData(const Patch* patch,
   Identity.Identity();
 
   ParticleSubset* pset = new_dw->getParticleSubset(matl->getDWIndex(), patch);
-  ParticleVariable<Matrix3> deformationGradient, pstress;
-  new_dw->allocateAndPut(deformationGradient,lb->pDeformationMeasureLabel,pset);
+  ParticleVariable<Matrix3> pstress;
   new_dw->allocateAndPut(pstress, lb->pStressLabel, pset);
 
 
   for(ParticleSubset::iterator iter = pset->begin();iter!=pset->end();iter++){
-     deformationGradient[*iter] = Identity;
      pstress[*iter] = zero;
   }
 }
@@ -112,8 +110,6 @@ HypoElasticImplicit::allocateCMDataAddRequires( Task* task,
                                                 MPMLabel* lb ) const
 {
   const MaterialSubset* matlset = matl->thisMaterial(); 
-  task->requires(Task::NewDW,lb->pDeformationMeasureLabel_preReloc, 
-                 matlset, Ghost::None);
   task->requires(Task::NewDW,lb->pStressLabel_preReloc, 
                  matlset, Ghost::None);
 }
@@ -127,23 +123,16 @@ HypoElasticImplicit::allocateCMDataAdd( DataWarehouse* new_dw,
 {
   // Put stuff in here to initialize each particle's
   // constitutive model parameters and deformationMeasure
-  ParticleVariable<Matrix3> pstress,deformationGradient;
-  constParticleVariable<Matrix3> o_stress, o_deformationGradient;
+  ParticleVariable<Matrix3> pstress;
+  constParticleVariable<Matrix3> o_stress;
 
-  new_dw->allocateTemporary(deformationGradient,addset);
-  new_dw->allocateTemporary(pstress,            addset);
-
-  new_dw->get(o_deformationGradient,lb->pDeformationMeasureLabel_preReloc,
-                                                                        delset);
   new_dw->get(o_stress,             lb->pStressLabel_preReloc,          delset);
 
   ParticleSubset::iterator o,n = addset->begin();
   for (o=delset->begin(); o != delset->end(); o++, n++) {
-    deformationGradient[*n] = o_deformationGradient[*o];
     pstress[*n] = o_stress[*o];
   }
 
-  (*newState)[lb->pDeformationMeasureLabel]=deformationGradient.clone();
   (*newState)[lb->pStressLabel]=pstress.clone();
 }
 
@@ -182,7 +171,7 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     Array3<int> l2g(lowIndex,highIndex);
     solver->copyL2G(l2g,patch);
 
-    Matrix3 Shear,deformationGradientInc,dispGrad,fbar;
+    Matrix3 Shear,deformationGradientInc,fbar;
     double onethird = (1.0/3.0);
 
     Matrix3 Identity;
@@ -197,13 +186,13 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     ParticleSubset* pset;
     constParticleVariable<Point> px;
     constParticleVariable<Matrix3> psize;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new, dispGrad;
     constParticleVariable<Matrix3> deformationGradient;
     ParticleVariable<Matrix3> pstress_new;
     constParticleVariable<Matrix3> pstress;
     constParticleVariable<double> pmass;
-    ParticleVariable<double> pvolume_deformed,pdTdt;
-    constNCVariable<Vector> dispNew;
+    constParticleVariable<double> pvolume_deformed;
+    ParticleVariable<double> pdTdt;
     
     DataWarehouse* parent_old_dw =
       new_dw->getOtherDataWarehouse(Task::ParentOldDW);
@@ -212,13 +201,14 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     parent_old_dw->get(psize,               lb->pSizeLabel,               pset);
     parent_old_dw->get(pmass,               lb->pMassLabel,               pset);
     parent_old_dw->get(pstress,             lb->pStressLabel,             pset);
-    parent_old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
-    old_dw->get(dispNew,lb->dispNewLabel,dwi,patch, Ghost::AroundCells,1);
+    parent_old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
+
+    new_dw->get(pvolume_deformed,           lb->pVolumeLabel_preReloc,    pset);
+    new_dw->get(deformationGradient_new,    lb->pDefGradLabel_preReloc,   pset);
+    new_dw->get(dispGrad,                   lb->pDispGradLabel_preReloc,  pset);
   
     new_dw->allocateAndPut(pstress_new,      lb->pStressLabel_preReloc, pset);
-    new_dw->allocateAndPut(pvolume_deformed, lb->pVolumeDeformedLabel,  pset);
     new_dw->allocateAndPut(pdTdt,            lb->pdTdtLabel_preReloc,   pset);
-    new_dw->allocateTemporary(deformationGradient_new,pset);
 
     double G = d_initialData.G;
     double K  = d_initialData.K;
@@ -234,7 +224,6 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
                                    iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pstress_new[idx] = Matrix3(0.0);
-        pvolume_deformed[idx] = pmass[idx]/rho_orig;
         pdTdt[idx] = 0.;
       }
     }
@@ -245,37 +234,16 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
 
         pdTdt[idx] = 0.;
 
-        dispGrad.set(0.0);
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],deformationGradient[idx]);
-
-        for(int k = 0; k < 8; k++) {
-          const Vector& disp = dispNew[ni[k]];
-          for (int j = 0; j<3; j++){
-            for (int i = 0; i<3; i++) {
-              dispGrad(i,j) += disp[i] * d_S[k][j]* oodx[j];
-            }
-          }
-        }
-
         int dof[24];
         loadBMats(l2g,dof,B,Bnl,d_S,ni,oodx);
 
         // Calculate the strain (here called D), and deviatoric rate DPrime
-        Matrix3 e = (dispGrad + dispGrad.Transpose())*.5;
+        Matrix3 e = (dispGrad[idx] + dispGrad[idx].Transpose())*.5;
         Matrix3 ePrime = e - Identity*onethird*e.Trace();
 
         // This is the (updated) Cauchy stress
 
         pstress_new[idx] = pstress[idx] + (ePrime*2.*G+Identity*K*e.Trace());
-
-        // Compute the deformation gradient increment using the dispGrad
-      
-        deformationGradientInc = dispGrad + Identity;
-
-        // Update the deformation gradient tensor to its time n+1 value.
-        deformationGradient_new[idx] = deformationGradientInc *
-                                       deformationGradient[idx];
 
         // get the volumetric part of the deformation
         double J = deformationGradient_new[idx].Determinant();
@@ -326,7 +294,7 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
         double volold = (pmass[idx]/rho_orig);
         double volnew = volold*J;
 
-        pvolume_deformed[idx] = volnew;
+        //pvolume_deformed[idx] = volnew;
 
         for(int ii = 0;ii<24;ii++){
           for(int jj = 0;jj<24;jj++){
@@ -359,7 +327,7 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
    for(int pp=0;pp<patches->size();pp++){
     double se = 0.0;
     const Patch* patch = patches->get(pp);
-    Matrix3 dispGrad,deformationGradientInc,Identity,zero(0.),One(1.);
+    Matrix3 deformationGradientInc,Identity,zero(0.),One(1.);
     double Jinc;
     double onethird = (1.0/3.0);
 
@@ -379,27 +347,26 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     constParticleVariable<Matrix3> psize;
     constParticleVariable<Matrix3> deformationGradient, pstress;
     ParticleVariable<Matrix3> pstress_new;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new, dispGrad;
     constParticleVariable<double> pvolume;
-    ParticleVariable<double> pvolume_deformed,pdTdt;
-    constNCVariable<Vector> dispNew;
+    constParticleVariable<double> pvolume_deformed;
+    ParticleVariable<double> pdTdt;
     delt_vartype delT;
 
     old_dw->get(px,                  lb->pXLabel,                  pset);
     old_dw->get(psize,               lb->pSizeLabel,               pset);
     old_dw->get(pstress,             lb->pStressLabel,             pset);
     old_dw->get(pvolume,             lb->pVolumeLabel,             pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
-
-    new_dw->get(dispNew,lb->dispNewLabel,dwi,patch,Ghost::AroundCells,1);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
 
     old_dw->get(delT, lb->delTLabel, getLevel(patches));
 
+    new_dw->get(pvolume_deformed,        lb->pVolumeLabel_preReloc,   pset);
+    new_dw->get(deformationGradient_new, lb->pDefGradLabel_preReloc,  pset);
+    new_dw->get(dispGrad,                lb->pDispGradLabel_preReloc, pset);
+
     new_dw->allocateAndPut(pstress_new,      lb->pStressLabel_preReloc,  pset);
-    new_dw->allocateAndPut(pvolume_deformed, lb->pVolumeDeformedLabel,   pset);
     new_dw->allocateAndPut(pdTdt,            lb->pdTdtLabel_preReloc,    pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                           lb->pDeformationMeasureLabel_preReloc,        pset);
  
     double G    = d_initialData.G;
     double bulk = d_initialData.K;
@@ -409,8 +376,6 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
           iter != pset->end(); iter++){
         particleIndex idx = *iter;
         pstress_new[idx] = Matrix3(0.0);
-        deformationGradient_new[idx] = Identity;
-        pvolume_deformed[idx] = pvolume[idx];
         pdTdt[idx] = 0.;
       }
     }
@@ -421,40 +386,13 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
         
         pdTdt[idx] = 0.;
 
-        dispGrad.set(0.0);
-        // Get the node indices that surround the cell
-        
-        interpolator->findCellAndShapeDerivatives(px[idx], ni, d_S, psize[idx],deformationGradient[idx]);
-        for(int k = 0; k < 8; k++) {
-          const Vector& disp = dispNew[ni[k]];
-          
-          for (int j = 0; j<3; j++){
-            for (int i = 0; i<3; i++) {
-              dispGrad(i,j) += disp[i] * d_S[k][j]* oodx[j];
-            }
-          }
-        }
-
       // Calculate the strain (here called D), and deviatoric rate DPrime
-      Matrix3 D = (dispGrad + dispGrad.Transpose())*.5;
+      Matrix3 D = (dispGrad[idx] + dispGrad[idx].Transpose())*.5;
       Matrix3 DPrime = D - Identity*onethird*D.Trace();
 
       // This is the (updated) Cauchy stress
 
       pstress_new[idx] = pstress[idx] + (DPrime*2.*G + Identity*bulk*D.Trace());
-
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient
-      // F_n^np1 = dudx * dt + Identity
-      deformationGradientInc = dispGrad + Identity;
-
-      Jinc = deformationGradientInc.Determinant();
-
-      // Update the deformation gradient tensor to its time n+1 value.
-      deformationGradient_new[idx] = deformationGradientInc *
-                                     deformationGradient[idx];
-
-      pvolume_deformed[idx]=Jinc*pvolume[idx];
 
       // Compute the strain energy for all the particles
       Matrix3 AvgStress = (pstress_new[idx] + pstress[idx])*.5;

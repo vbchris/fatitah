@@ -314,17 +314,14 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
     constParticleVariable<Point> px;
     constParticleVariable<Matrix3> deformationGradient, pstress;
     ParticleVariable<Matrix3> pstress_new;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new;
     constParticleVariable<double> pmass, pvolume, ptemperature, pTempPrevious;
-    ParticleVariable<double> pvolume_new;
+    constParticleVariable<double> pvolume_new;
     constParticleVariable<Vector> pvelocity;
     constParticleVariable<Matrix3> psize;
-    constNCVariable<Vector> gvelocity;
     delt_vartype delT;
     old_dw->get(delT, lb->delTLabel, getLevel(patches));
 
-    Ghost::GhostType  gac   = Ghost::AroundCells;
-    
     old_dw->get(px,                  lb->pXLabel,                  pset);
     old_dw->get(pstress,             lb->pStressLabel,             pset);
     old_dw->get(psize,               lb->pSizeLabel,               pset);
@@ -332,22 +329,16 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pvolume,             lb->pVolumeLabel,             pset);
     old_dw->get(pvelocity,           lb->pVelocityLabel,           pset);
     old_dw->get(ptemperature,        lb->pTemperatureLabel,        pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
     // for thermal stress
     old_dw->get(pTempPrevious,       lb->pTempPreviousLabel,       pset); 
 
-    new_dw->get(gvelocity,lb->gVelocityStarLabel, dwi,patch, gac, NGN);
-
-    constNCVariable<Vector> Gvelocity;
-    constParticleVariable<Short27> pgCode;
     constParticleVariable<Matrix3> pdispGrads;
     constParticleVariable<double>  pstrainEnergyDensity;
     ParticleVariable<Matrix3> pdispGrads_new,pvelGrads;
     ParticleVariable<double> pstrainEnergyDensity_new;
     ParticleVariable<double> pdTdt,p_q;
     if (flag->d_fracture) {
-      new_dw->get(Gvelocity,lb->GVelocityStarLabel, dwi, patch, gac, NGN);
-      new_dw->get(pgCode,              lb->pgCodeLabel,              pset);
       old_dw->get(pdispGrads,          lb->pDispGradsLabel,          pset);
       old_dw->get(pstrainEnergyDensity,lb->pStrainEnergyDensityLabel,pset);
       new_dw->allocateAndPut(pvelGrads,lb->pVelGradsLabel,           pset);
@@ -356,15 +347,14 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
                              lb->pStrainEnergyDensityLabel_preReloc, pset);
     }
 
+    new_dw->get(pvolume_new,                lb->pVolumeLabel_preReloc,   pset);
+    new_dw->get(deformationGradient_new,    lb->pDefGradLabel_preReloc,  pset);
+    constParticleVariable<Matrix3> pVelGrad;
+    new_dw->get(pVelGrad,                   lb->pVelGradLabel_preReloc,  pset);
+
     new_dw->allocateAndPut(pstress_new,     lb->pStressLabel_preReloc,   pset);
-    new_dw->getModifiable(pvolume_new,     lb->pVolumeLabel_preReloc,   pset);
-    //new_dw->allocateAndPut(pvolume_new,     lb->pVolumeLabel_preReloc,   pset);
     new_dw->allocateAndPut(pdTdt,           lb->pdTdtLabel_preReloc,     pset);
     new_dw->allocateAndPut(p_q,             lb->p_qLabel_preReloc,       pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                           lb->pDeformationMeasureLabel_preReloc,        pset);
-    ParticleVariable<Matrix3> vG;
-    new_dw->allocateTemporary(vG, pset);
 
     CCVariable<double> vol_0_CC,dvol_CC;
     CCVariable<int> PPC;
@@ -386,38 +376,13 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
 
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
-      // Initialize velocity gradient
-      velGrad.set(0.0);
-
-      if(!flag->d_axisymmetric){
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],deformationGradient[idx]);
-
-        short pgFld[27];
-        if (flag->d_fracture) {
-         for(int k=0; k<27; k++){
-           pgFld[k]=pgCode[idx][k];
-         }
-         computeVelocityGradient(velGrad,ni,d_S,oodx,pgFld,gvelocity,Gvelocity);
-        } else {
-         computeVelocityGradient(velGrad,ni,d_S,oodx,gvelocity);
-
-        }
-      } else {  // axi-symmetric kinematics
-        // Get the node indices that surround the cell
-        interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                                    psize[idx],deformationGradient[idx]);
-        // x -> r, y -> z, z -> theta
-        computeAxiSymVelocityGradient(velGrad,ni,d_S,S,oodx,gvelocity,px[idx]);
-      }
 
       // Rate of particle temperature change for thermal stress
       double ptempRate=(ptemperature[idx]-pTempPrevious[idx])/delT; 
+
       // Calculate rate of deformation D, and deviatoric rate DPrime,
       // including effect of thermal strain
-      Matrix3 D = (velGrad + velGrad.Transpose())*.5-Identity*alpha*ptempRate;
-
-      vG[idx]=velGrad;
+      Matrix3 D = (pVelGrad[idx] + pVelGrad[idx].Transpose())*.5-Identity*alpha*ptempRate;
 
       IntVector cell_index;
       patch->findCell(px[idx],cell_index);
@@ -447,27 +412,15 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
       IntVector cell_index;
       patch->findCell(px[idx],cell_index);
 
-      Matrix3 D = (vG[idx] + vG[idx].Transpose())*.5-Identity*alpha*ptempRate;
+      Matrix3 D = (pVelGrad[idx] + pVelGrad[idx].Transpose())*.5-Identity*alpha*ptempRate;
       double DTrace = D.Trace();
       // Alter D to stabilize the pressure in each cell
       D = D + Identity*onethird*press_stab*(dvol_CC[cell_index] - DTrace);
       DTrace = D.Trace();
       Matrix3 DPrime = D - Identity*onethird*DTrace;
 
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient
-      // F_n^np1 = dudx * dt + Identity
-      deformationGradientInc = vG[idx] * delT + Identity;
-
-      Jinc = deformationGradientInc.Determinant();
-
-      // Update the deformation gradient tensor to its time n+1 value.
-      deformationGradient_new[idx] = deformationGradientInc *
-                                     deformationGradient[idx];
-
       // get the volumetric part of the deformation
       double J = deformationGradient[idx].Determinant();
-      pvolume_new[idx]=Jinc*pvolume[idx];
 
       // Compute the local sound speed
       double rho_cur = rho_orig/J;
@@ -490,9 +443,9 @@ void HypoElastic::computeStressTensor(const PatchSubset* patches,
       se += e;
 
       if (flag->d_fracture) {
-        pvelGrads[idx]=vG[idx];
+        pvelGrads[idx]=pVelGrad[idx];
         // Update particle displacement gradients
-        pdispGrads_new[idx] = pdispGrads[idx] + vG[idx] * delT;
+        pdispGrads_new[idx] = pdispGrads[idx] + pVelGrad[idx] * delT;
         // Update particle strain energy density 
         pstrainEnergyDensity_new[idx] = pstrainEnergyDensity[idx] + 
                                          e/pvolume_new[idx];

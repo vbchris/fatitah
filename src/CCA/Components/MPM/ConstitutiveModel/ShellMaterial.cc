@@ -493,7 +493,7 @@ ShellMaterial::interpolateParticleRotToGrid(const PatchSubset* patches,
     old_dw->get(pMass,          lb->pMassLabel,          pset);
     old_dw->get(pX,             lb->pXLabel,             pset);
     old_dw->get(pSize,        lb->pSizeLabel,          pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel, pset);
     old_dw->get(pRotRate,       pNormalRotRateLabel,     pset);
     new_dw->get(gMass,          lb->gMassLabel, dwi,     patch, gan, NGN);
 
@@ -642,7 +642,7 @@ ShellMaterial::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pStressCen,  pStressCenLabel,              pset);
     old_dw->get(pStressBot,  pStressBotLabel,              pset);
     old_dw->get(pStress,     lb->pStressLabel,             pset);
-    old_dw->get(pDefGrad,    lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDefGrad,    lb->pDefGradLabel,            pset);
     old_dw->get(delT,        lb->delTLabel, getLevel(patches));
     new_dw->get(gVelocity,   lb->gVelocityStarLabel,    dwi, patch, gac, NGN);
     new_dw->get(gRotRate,    lb->gNormalRotRateLabel, dwi, patch, gac, NGN);
@@ -653,7 +653,7 @@ ShellMaterial::computeStressTensor(const PatchSubset* patches,
     ParticleVariable<Matrix3> pDefGradTop_new, pDefGradBot_new, pDefGradCen_new,
                               pStressTop_new, pStressCen_new, pStressBot_new, 
                               pStress_new, pDefGrad_new;
-    new_dw->allocateAndPut(pVolume_new,    lb->pVolumeLabel_preReloc,     pset);
+    new_dw->getModifiable(pVolume_new,    lb->pVolumeLabel_preReloc,     pset);
     new_dw->allocateAndPut(pThickTop_new,  lb->pThickTopLabel_preReloc,   pset);
     new_dw->allocateAndPut(pThickTop0_new, lb->pInitialThickTopLabel_preReloc,
                            pset);
@@ -667,7 +667,7 @@ ShellMaterial::computeStressTensor(const PatchSubset* patches,
     new_dw->allocateAndPut(pStressCen_new,  pStressCenLabel_preReloc,     pset);
     new_dw->allocateAndPut(pStressBot_new,  pStressBotLabel_preReloc,     pset);
     new_dw->allocateAndPut(pStress_new,    lb->pStressLabel_preReloc,     pset);
-    new_dw->allocateAndPut(pDefGrad_new,  lb->pDeformationMeasureLabel_preReloc,
+    new_dw->getModifiable(pDefGrad_new,  lb->pDefGradLabel_preReloc,
                            pset);
 
     ParticleVariable<double>  pRotMass;
@@ -947,7 +947,7 @@ ShellMaterial::computeRotInternalMoment(const PatchSubset* patches,
     old_dw->get(pX,         lb->pXLabel,                      pset);
     
     old_dw->get(pSize,    lb->pSizeLabel,                   pset);
-    old_dw->get(pDefGrad, lb->pDeformationMeasureLabel,     pset);
+    old_dw->get(pDefGrad, lb->pDefGradLabel,     pset);
     new_dw->get(pAvMoment,  pAverageMomentLabel,              pset);
 
     // Allocate stuff to be written to datawarehouse
@@ -1040,7 +1040,7 @@ ShellMaterial::computeRotAcceleration(const PatchSubset* patches,
     old_dw->get(pX,          lb->pXLabel,                      pset);
 
     old_dw->get(pSize,     lb->pSizeLabel,                   pset);
-    old_dw->get(pDefGrad,  lb->pDeformationMeasureLabel,     pset);
+    old_dw->get(pDefGrad,  lb->pDefGradLabel,     pset);
     old_dw->get(pNormal,     lb->pNormalLabel,                 pset);
     new_dw->get(pRotMass,    pRotMassLabel,                    pset);
     new_dw->get(pNDotAvSig,  pNormalDotAvStressLabel,          pset);

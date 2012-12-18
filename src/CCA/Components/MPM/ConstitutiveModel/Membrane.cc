@@ -246,7 +246,7 @@ void Membrane::computeStressTensor(const PatchSubset* patches,
   for(int pp=0;pp<patches->size();pp++){
 
     const Patch* patch = patches->get(pp);
-    Matrix3 velGrad,Shear,bElBar_new,deformationGradientInc;
+    Matrix3 Shear,bElBar_new,deformationGradientInc;
     double Jvol,p,IEl,U,W,se=0.;
     double c_dil=0.0;
     Vector WaveSpeed(1.e-12,1.e-12,1.e-12);
@@ -266,12 +266,12 @@ void Membrane::computeStressTensor(const PatchSubset* patches,
     int dwi = matl->getDWIndex();
     ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
     constParticleVariable<Point> px;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new, velGrad;
     constParticleVariable<Matrix3> deformationGradient;
     constParticleVariable<Matrix3> pstress, defGradIPOld;
     ParticleVariable<Matrix3> pstress_new,defGradIP;
     constParticleVariable<double> pmass;
-    ParticleVariable<double> pvolume;
+    constParticleVariable<double> pvolume;
     constParticleVariable<Vector> pvelocity;
     constParticleVariable<Matrix3> psize;
     constParticleVariable<Vector> ptang1,ptang2,pnorm;
@@ -293,19 +293,17 @@ void Membrane::computeStressTensor(const PatchSubset* patches,
     old_dw->get(ptang1,                     pTang1Label,                  pset);
     old_dw->get(ptang2,                     pTang2Label,                  pset);
     old_dw->get(pnorm,                      pNormLabel,                   pset);
-    old_dw->get(deformationGradient,        lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient,        lb->pDefGradLabel,            pset);
+    new_dw->get(pvolume,                    lb->pVolumeLabel_preReloc,    pset);
+    new_dw->get(deformationGradient_new,    lb->pDefGradLabel_preReloc,   pset);
+    new_dw->get(velGrad,                    lb->pVelGradLabel_preReloc,   pset);
     new_dw->allocateAndPut(pstress_new,     lb->pStressLabel_preReloc,    pset);
-    new_dw->allocateAndPut(pvolume,         lb->pVolumeLabel_preReloc,    pset);
     new_dw->allocateAndPut(T1,              pTang1Label_preReloc,         pset);
     new_dw->allocateAndPut(T2,              pTang2Label_preReloc,         pset);
     new_dw->allocateAndPut(T3,              pNormLabel_preReloc,          pset);
     new_dw->allocateAndPut(defGradIP,       defGradInPlaneLabel_preReloc, pset);
     new_dw->allocateAndPut(pdTdt,           lb->pdTdtLabel_preReloc,      pset);
     new_dw->allocateAndPut(p_q,             lb->p_qLabel_preReloc,        pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                                   lb->pDeformationMeasureLabel_preReloc, pset);
-
-    new_dw->get(gvelocity, lb->gVelocityStarLabel, dwi,patch, gac,NGN);
 
 
     double shear = d_initialData.Shear;
@@ -321,23 +319,8 @@ void Membrane::computeStressTensor(const PatchSubset* patches,
       pdTdt[idx] = 0.0;
       p_q[idx] = 0.0;
 
-       // Get the node indices that surround the cell
-      interpolator->findCellAndShapeDerivatives(px[idx], ni, d_S,psize[idx],deformationGradient[idx]);
-
-      velGrad.set(0.0);
-      computeVelocityGradient(velGrad,ni,d_S,oodx,gvelocity);
-
       T1[idx] = ptang1[idx];
       T2[idx] = ptang2[idx];
-
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient
-      // F_n^np1 = dudx * dt + Identity
-      deformationGradientInc = velGrad * delT + Identity;
-
-      // Update the deformation gradient tensor to its time n+1 value.
-      deformationGradient_new[idx] = deformationGradientInc *
-                                     deformationGradient[idx];
 
       // get the volumetric part of the deformation
       Jvol    = deformationGradient_new[idx].Determinant();
@@ -423,9 +406,9 @@ void Membrane::computeStressTensor(const PatchSubset* patches,
 
       Matrix3 L_ij_ip(0.0), L_ip(0.0), L_local;
 
-      Vector vGT1 = velGrad*T1[idx];
-      Vector vGT2 = velGrad*T2[idx];
-      Vector vGT3 = velGrad*T3[idx];
+      Vector vGT1 = velGrad[idx]*T1[idx];
+      Vector vGT2 = velGrad[idx]*T2[idx];
+      Vector vGT3 = velGrad[idx]*T3[idx];
 
       L_ij_ip(0,0) = Dot(T1[idx], vGT1);
       L_ij_ip(0,1) = Dot(T1[idx], vGT2);
@@ -525,8 +508,6 @@ void Membrane::computeStressTensor(const PatchSubset* patches,
       U = .5*bulk*(.5*(jv*jv - 1.0) - log(jv));
       W = .5*shear*(bElBar_new.Trace() - 3.0);
 
-      pvolume[idx]=(pmass[idx]/rho_orig)*jv;
-      
       double e = (U + W)*pvolume[idx]/jv;
 
       se += e;
