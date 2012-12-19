@@ -361,7 +361,7 @@ void ImpMPM::scheduleInitialize(const LevelP& level, SchedulerP& sched)
   t->computes(lb->pTempPreviousLabel);
   t->computes(lb->pSizeLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pCellNAPIDLabel);
   if(flags->d_artificial_viscosity){
@@ -930,7 +930,7 @@ void ImpMPM::scheduleInterpolateParticlesToGrid(SchedulerP& sched,
     t->requires(Task::OldDW,lb->gDisplacementLabel,    Ghost::None);
     t->computes(lb->gDisplacementLabel);
   }
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,   Ghost::AroundNodes,1);
+  t->requires(Task::OldDW, lb->pDefGradLabel,   Ghost::AroundNodes,1);
 
   t->requires(Task::OldDW,lb->NC_CCweightLabel, one_matl,Ghost::AroundCells,1);
   
@@ -1190,7 +1190,7 @@ void ImpMPM::scheduleComputeInternalForce(SchedulerP& sched,
 
   t->requires(Task::ParentOldDW,lb->pXLabel,                 Ghost::AroundNodes,1);
   t->requires(Task::ParentOldDW,lb->pSizeLabel,              Ghost::AroundNodes,1);
-  t->requires(Task::ParentOldDW,lb->pDeformationMeasureLabel,Ghost::AroundNodes,1);
+  t->requires(Task::ParentOldDW,lb->pDefGradLabel,Ghost::AroundNodes,1);
   t->requires(Task::NewDW,      lb->pStressLabel_preReloc,Ghost::AroundNodes,1);
   t->requires(Task::NewDW,      lb->pVolumeDeformedLabel, Ghost::AroundNodes,1);
 
@@ -1340,7 +1340,7 @@ void ImpMPM::scheduleIterate(SchedulerP& sched,const LevelP& level,
   task->requires(Task::OldDW,lb->pMassLabel,              Ghost::None,0);
   task->requires(Task::OldDW,lb->pSizeLabel,              Ghost::None,0);
   task->requires(Task::OldDW,lb->pVolumeLabel,            Ghost::None,0);
-  task->requires(Task::OldDW,lb->pDeformationMeasureLabel,Ghost::None,0);
+  task->requires(Task::OldDW,lb->pDefGradLabel,Ghost::None,0);
 
   task->modifies(lb->dispNewLabel);
   task->modifies(lb->gVelocityLabel);
@@ -1454,7 +1454,7 @@ void ImpMPM::scheduleInterpolateToParticlesAndUpdate(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pSizeLabel,             Ghost::None);
   t->requires(Task::NewDW, lb->gTemperatureRateLabel,one_matl,
               Ghost::AroundCells,1);
-  t->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc,        Ghost::None);
+  t->requires(Task::NewDW, lb->pDefGradLabel_preReloc,        Ghost::None);
 
 
   t->computes(lb->pVelocityLabel_preReloc);
@@ -1500,7 +1500,7 @@ void ImpMPM::scheduleRefine(const PatchSet* patches,
   t->computes(lb->pTempPreviousLabel);
   t->computes(lb->pSizeLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pCellNAPIDLabel);
   t->computes(d_sharedState->get_delt_label(),getLevel(patches));
@@ -1596,7 +1596,7 @@ void ImpMPM::scheduleInterpolateStressToGrid(SchedulerP& sched,
   t->requires(Task::NewDW,lb->gVolumeLabel,         Ghost::None);
   t->requires(Task::NewDW,lb->gVolumeLabel,d_sharedState->getAllInOneMatl(),
                                  Task::OutOfDomain, Ghost::None);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,   Ghost::AroundNodes,1);
+  t->requires(Task::OldDW, lb->pDefGradLabel,   Ghost::AroundNodes,1);
 
 
   t->modifies(lb->gInternalForceLabel);
@@ -2200,7 +2200,7 @@ void ImpMPM::interpolateParticlesToGrid(const ProcessorGroup*,
       new_dw->get(pexternalforce, lb->pExtForceLabel_preReloc, pset);
       new_dw->get(pextheatrate,   lb->pExternalHeatRateLabel,  pset);
       new_dw->get(pextheatflux,   lb->pExternalHeatFluxLabel_preReloc,  pset);
-      old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
 
 
       new_dw->allocateAndPut(gmass[m],      lb->gMassLabel,         matl,patch);
@@ -2341,7 +2341,7 @@ void ImpMPM::interpolateParticlesToGrid(const ProcessorGroup*,
         old_dw->get(px,             lb->pXLabel,                 pset);
         old_dw->get(pTemperature,   lb->pTemperatureLabel,       pset);
         old_dw->get(psize,          lb->pSizeLabel,              pset);
-        old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+        old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
  
 
 
@@ -3030,7 +3030,7 @@ void ImpMPM::computeInternalForce(const ProcessorGroup*,
 
         parent_old_dw->get(px,                  lb->pXLabel,           pset);
         parent_old_dw->get(psize,               lb->pSizeLabel,        pset);
-        parent_old_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel,          pset);
+        parent_old_dw->get(pDeformationMeasure, lb->pDefGradLabel,          pset);
 
         new_dw->get(pvol,        lb->pVolumeDeformedLabel,  pset);
         new_dw->get(pstress,     lb->pStressLabel_preReloc, pset);
@@ -3577,7 +3577,7 @@ void ImpMPM::interpolateToParticlesAndUpdate(const ProcessorGroup*,
       new_dw->allocateAndPut(pvolumeNew, lb->pVolumeLabel_preReloc,      pset);
       new_dw->allocateAndPut(pTemp,      lb->pTemperatureLabel_preReloc, pset);
       new_dw->allocateAndPut(pDisp,      lb->pDispLabel_preReloc,        pset);
-      new_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel_preReloc, pset);
+      new_dw->get(pDeformationMeasure, lb->pDefGradLabel_preReloc, pset);
 
 
       new_dw->get(dispNew,        lb->dispNewLabel,      dwindex,patch,gac, 1);
@@ -3748,7 +3748,7 @@ void ImpMPM::interpolateStressToGrid(const ProcessorGroup*,
        new_dw->get(pvol,        lb->pVolumeDeformedLabel,  pset);
        old_dw->get(psize,       lb->pSizeLabel,            pset);
        new_dw->get(pstress,     lb->pStressLabel_preReloc, pset);
-       old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+       old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
 
 
        Matrix3 stressvol;

@@ -130,7 +130,7 @@ Crack::addComputesAndRequiresMoveCracks(Task* t,
   t->requires(Task::NewDW, lb->GVelocityStarLabel, gac, NGC);
 
   t->requires(Task::OldDW,lb->pSizeLabel, Ghost::None);
-  t->requires(Task::OldDW,lb->pDeformationMeasureLabel, Ghost::None);
+  t->requires(Task::OldDW,lb->pDefGradLabel, Ghost::None);
 }
 
 void
@@ -175,7 +175,7 @@ Crack::MoveCracks(const ProcessorGroup*,
       constParticleVariable<Matrix3> psize;
       constParticleVariable<Matrix3> deformationGradient;
       old_dw->get(psize,lb->pSizeLabel,pset);
-      old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient, lb->pDefGradLabel, pset);
 
       Ghost::GhostType  gac = Ghost::AroundCells;
       constNCVariable<double> gmass,Gmass;

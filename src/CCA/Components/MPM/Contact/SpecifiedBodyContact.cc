@@ -294,7 +294,7 @@ void SpecifiedBodyContact::exMomIntegrated(const ProcessorGroup*,
      old_dw->get(pmass,               lb->pMassLabel,               pset);
      old_dw->get(pvolume,             lb->pVolumeLabel,             pset);
      old_dw->get(psize,               lb->pSizeLabel,               pset);
-     old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+     old_dw->get(deformationGradient, lb->pDefGradLabel, pset);
 
      ParticleInterpolator* interpolator = flag->d_interpolator->clone(patch);
      vector<IntVector> ni(interpolator->size());
@@ -459,7 +459,7 @@ void SpecifiedBodyContact::addComputesAndRequiresIntegrated(SchedulerP & sched,
    t->requires(Task::OldDW, lb->pVolumeLabel,      gan, NGP);
    t->requires(Task::OldDW, lb->pStressLabel,      gan, NGP);
    t->requires(Task::OldDW, lb->pSizeLabel,        gan, NGP);
-   t->requires(Task::OldDW, lb->pDeformationMeasureLabel, gan, NGP);
+   t->requires(Task::OldDW, lb->pDefGradLabel, gan, NGP);
    t->computes(lb->gSurfNormLabel);
   }
 

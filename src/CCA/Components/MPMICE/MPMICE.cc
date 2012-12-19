@@ -749,7 +749,7 @@ void MPMICE::scheduleInterpolatePAndGradP(SchedulerP& sched,
   t->requires(Task::NewDW, MIlb->cMassLabel,          mpm_matl,  gac, 1);
   t->requires(Task::OldDW, Mlb->pXLabel,              mpm_matl,  Ghost::None);
   t->requires(Task::OldDW, Mlb->pSizeLabel,           mpm_matl,  Ghost::None);
-  t->requires(Task::OldDW, Mlb->pDeformationMeasureLabel, mpm_matl, Ghost::None);
+  t->requires(Task::OldDW, Mlb->pDefGradLabel, mpm_matl, Ghost::None);
    
   t->computes(Mlb->pPressureLabel,   mpm_matl);
   sched->addTask(t, patches, all_matls);
@@ -1291,7 +1291,7 @@ void MPMICE::interpolatePAndGradP(const ProcessorGroup*,
       constParticleVariable<Matrix3> deformationGradient;
       old_dw->get(psize,                Mlb->pSizeLabel,     pset);     
       old_dw->get(px,                   Mlb->pXLabel,        pset);     
-      old_dw->get(deformationGradient,  Mlb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient,  Mlb->pDefGradLabel, pset);
       new_dw->allocateAndPut(pPressure, Mlb->pPressureLabel, pset);     
 
      //__________________________________

@@ -321,7 +321,7 @@ void AMRMPM::scheduleInitialize(const LevelP& level, SchedulerP& sched)
   t->computes(lb->pVelocityLabel);
   t->computes(lb->pExternalForceLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pSizeLabel);
   t->computes(d_sharedState->get_delt_label(),level.get_rep());
@@ -598,7 +598,7 @@ void AMRMPM::scheduleInterpolateParticlesToGrid(SchedulerP& sched,
   t->requires(Task::NewDW, lb->pExtForceLabel_preReloc,  gan,NGP);
   t->requires(Task::OldDW, lb->pTemperatureLabel,        gan,NGP);
   t->requires(Task::OldDW, lb->pSizeLabel,               gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel, gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel, gan,NGP);
   //t->requires(Task::OldDW, lb->pExternalHeatRateLabel, gan,NGP);
 
   t->computes(lb->gMassLabel);
@@ -647,7 +647,7 @@ void AMRMPM::scheduleInterpolateParticlesToGrid_CFI(SchedulerP& sched,
     t->requires(Task::OldDW, lb->pXLabel,                  allPatches, Task::CoarseLevel,allMatls, ND, gac, npc);
     t->requires(Task::NewDW, lb->pExtForceLabel_preReloc,  allPatches, Task::CoarseLevel,allMatls, ND, gac, npc);
     t->requires(Task::OldDW, lb->pTemperatureLabel,        allPatches, Task::CoarseLevel,allMatls, ND, gac, npc);
-    t->requires(Task::OldDW, lb->pDeformationMeasureLabel, allPatches, Task::CoarseLevel,allMatls, ND, gac, npc);
+    t->requires(Task::OldDW, lb->pDefGradLabel, allPatches, Task::CoarseLevel,allMatls, ND, gac, npc);
 
     t->modifies(lb->gMassLabel);
     t->modifies(lb->gVolumeLabel);
@@ -842,7 +842,7 @@ void AMRMPM::scheduleComputeInternalForce(SchedulerP& sched,
   t->requires(Task::OldDW,lb->pVolumeLabel,               gan,NGP);
   t->requires(Task::OldDW,lb->pXLabel,                    gan,NGP);
   t->requires(Task::OldDW,lb->pSizeLabel,                 gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,  gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,  gan,NGP);
   if(flags->d_artificial_viscosity){
     t->requires(Task::OldDW, lb->p_qLabel,                gan,NGP);
   }
@@ -994,7 +994,7 @@ void AMRMPM::scheduleInterpolateToParticlesAndUpdate(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pDispLabel,                         gnone);
   t->requires(Task::OldDW, lb->pSizeLabel,                         gnone);
   t->requires(Task::OldDW, lb->pVolumeLabel,                       gnone);
-  t->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc,  gnone);
+  t->requires(Task::NewDW, lb->pDefGradLabel_preReloc,  gnone);
   t->requires(Task::NewDW, lb->pdTdtLabel_preReloc,                gnone);
   t->modifies(lb->pVolumeLabel_preReloc);
 
@@ -1077,7 +1077,7 @@ void AMRMPM::scheduleRefine(const PatchSet* patches,
   t->computes(lb->pVelocityLabel);
   t->computes(lb->pExternalForceLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pSizeLabel);
 
@@ -1324,7 +1324,7 @@ void AMRMPM::interpolateParticlesToGrid(const ProcessorGroup*,
       old_dw->get(pvelocity,            lb->pVelocityLabel,           pset);
       old_dw->get(pTemperature,         lb->pTemperatureLabel,        pset);
       old_dw->get(psize,                lb->pSizeLabel,               pset);
-      old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
       new_dw->get(pexternalforce,       lb->pExtForceLabel_preReloc,  pset);
       
       // Create arrays for the grid data
@@ -1479,7 +1479,7 @@ void AMRMPM::interpolateParticlesToGrid_CFI(const ProcessorGroup*,
         old_dw->get(pVolume_coarse,        lb->pVolumeLabel,             pset);
         old_dw->get(pVelocity_coarse,      lb->pVelocityLabel,           pset);
         old_dw->get(pTemperature_coarse,   lb->pTemperatureLabel,        pset);
-        old_dw->get(pDefMeasure_coarse,    lb->pDeformationMeasureLabel, pset);
+        old_dw->get(pDefMeasure_coarse,    lb->pDefGradLabel, pset);
         new_dw->get(pExternalforce_coarse, lb->pExtForceLabel_preReloc,  pset);
 
         for (ParticleSubset::iterator iter = pset->begin();iter != pset->end(); iter++){
@@ -1929,7 +1929,7 @@ void AMRMPM::computeInternalForce(const ProcessorGroup*,
       old_dw->get(pvol,    lb->pVolumeLabel,    pset);
       old_dw->get(pstress, lb->pStressLabel,    pset);
       old_dw->get(psize,   lb->pSizeLabel,      pset);
-      old_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure, lb->pDefGradLabel, pset);
 
       new_dw->get(gvolume, lb->gVolumeLabel, dwi, patch, Ghost::None, 0);
       new_dw->allocateAndPut(gstress,      lb->gStressForSavingLabel,dwi,patch);
@@ -2642,7 +2642,7 @@ void AMRMPM::interpolateToParticlesAndUpdate(const ProcessorGroup*,
       old_dw->get(pvelocity,    lb->pVelocityLabel,                  pset);
       old_dw->get(pTemperature, lb->pTemperatureLabel,               pset);
       new_dw->get(pdTdt,        lb->pdTdtLabel_preReloc,             pset);
-      new_dw->get(pDeformationMeasure,   lb->pDeformationMeasureLabel_preReloc, pset);
+      new_dw->get(pDeformationMeasure,   lb->pDefGradLabel_preReloc, pset);
       new_dw->getModifiable(pvolumeNew,  lb->pVolumeLabel_preReloc,             pset);
       
       
@@ -3083,7 +3083,7 @@ void AMRMPM::scheduleDebug_CFI(SchedulerP& sched,
    Ghost::GhostType  gn = Ghost::None;
   t->requires(Task::OldDW, lb->pXLabel,                  gn,0);
   t->requires(Task::OldDW, lb->pSizeLabel,               gn,0);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel, gn,0);
+  t->requires(Task::OldDW, lb->pDefGradLabel, gn,0);
   
   if(level->hasFinerLevel()){ 
     #define allPatches 0
@@ -3123,7 +3123,7 @@ void AMRMPM::debug_CFI(const ProcessorGroup*,
     
     old_dw->get(px,                   lb->pXLabel,                  pset);
     old_dw->get(psize,                lb->pSizeLabel,               pset);
-    old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
     new_dw->allocateAndPut(pColor,    lb->pColorLabel_preReloc,     pset);
     
     ParticleInterpolator* interpolatorCoarse = flags->d_interpolator->clone(patch);

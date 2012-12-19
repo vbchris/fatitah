@@ -370,7 +370,7 @@ void SerialMPM::scheduleInitialize(const LevelP& level,
   t->computes(lb->pVelocityLabel);
   t->computes(lb->pExternalForceLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pSizeLabel);
   t->computes(d_sharedState->get_delt_label(),level.get_rep());
@@ -478,7 +478,7 @@ void SerialMPM::scheduleInitializeAddedMaterial(const LevelP& level,
   t->computes(lb->pVelocityLabel,          add_matl);
   t->computes(lb->pExternalForceLabel,     add_matl);
   t->computes(lb->pParticleIDLabel,        add_matl);
-  t->computes(lb->pDeformationMeasureLabel,add_matl);
+  t->computes(lb->pDefGradLabel,add_matl);
   t->computes(lb->pStressLabel,            add_matl);
   t->computes(lb->pSizeLabel,              add_matl);
   t->computes(lb->pFiberDirLabel,          add_matl);
@@ -616,7 +616,7 @@ void SerialMPM::scheduleInitializePressureBCs(const LevelP& level,
                     this, &SerialMPM::initializePressureBC);
     t->requires(Task::NewDW, lb->pXLabel,                        Ghost::None);
     t->requires(Task::NewDW, lb->pSizeLabel,                     Ghost::None);
-    t->requires(Task::NewDW, lb->pDeformationMeasureLabel,       Ghost::None);
+    t->requires(Task::NewDW, lb->pDefGradLabel,       Ghost::None);
     t->requires(Task::NewDW, lb->pLoadCurveIDLabel,              Ghost::None);
     t->requires(Task::NewDW, lb->materialPointsPerLoadCurveLabel,
                             d_loadCurveIndex, Task::OutOfDomain, Ghost::None);
@@ -783,7 +783,7 @@ void SerialMPM::scheduleApplyExternalLoads(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pSizeLabel,              Ghost::None);
   t->requires(Task::OldDW, lb->pMassLabel,              Ghost::None);
   t->requires(Task::OldDW, lb->pDispLabel,              Ghost::None);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,Ghost::None);
+  t->requires(Task::OldDW, lb->pDefGradLabel,Ghost::None);
   t->requires(Task::OldDW, lb->pExternalForceLabel,     Ghost::None);
   t->computes(             lb->pExtForceLabel_preReloc);
   if (flags->d_useLoadCurves) {
@@ -828,7 +828,7 @@ void SerialMPM::scheduleInterpolateParticlesToGrid(SchedulerP& sched,
   t->requires(Task::NewDW, lb->pExtForceLabel_preReloc,gan,NGP);
   t->requires(Task::OldDW, lb->pTemperatureLabel,      gan,NGP);
   t->requires(Task::OldDW, lb->pSizeLabel,             gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,gan,NGP);
   if (flags->d_useCBDI) {
     t->requires(Task::NewDW,  lb->pExternalForceCorner1Label,gan,NGP);
     t->requires(Task::NewDW,  lb->pExternalForceCorner2Label,gan,NGP);
@@ -1128,7 +1128,7 @@ void SerialMPM::scheduleComputeInternalForce(SchedulerP& sched,
   t->requires(Task::OldDW,lb->pVolumeLabel,               gan,NGP);
   t->requires(Task::OldDW,lb->pXLabel,                    gan,NGP);
   t->requires(Task::OldDW,lb->pSizeLabel,                 gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,  gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,  gan,NGP);
 
   if(flags->d_with_ice){
     t->requires(Task::NewDW, lb->pPressureLabel,          gan,NGP);
@@ -1405,7 +1405,7 @@ void SerialMPM::scheduleInterpolateToParticlesAndUpdate(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pSizeLabel,                      gnone);
   t->requires(Task::NewDW, lb->pdTdtLabel_preReloc,             gnone);
   t->requires(Task::NewDW, lb->pLocalizedMPMLabel,              gnone);
-  t->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc,gnone);
+  t->requires(Task::NewDW, lb->pDefGradLabel_preReloc,gnone);
   t->modifies(lb->pVolumeLabel_preReloc);
 
   if(flags->d_with_ice){
@@ -1491,7 +1491,7 @@ void SerialMPM::scheduleInterpolateToParticlesAndUpdateMom1(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pMassLabel,                      gnone);
   t->requires(Task::OldDW, lb->pVelocityLabel,                  gnone);
   t->requires(Task::OldDW, lb->pSizeLabel,                      gnone);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,        gnone);
+  t->requires(Task::OldDW, lb->pDefGradLabel,        gnone);
 
   t->computes(lb->pVelocityLabel_preReloc);
   t->computes(lb->pXLabel_preReloc);
@@ -1537,7 +1537,7 @@ void SerialMPM::scheduleInterpolateToParticlesAndUpdateMom2(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pParticleIDLabel,                gnone);
   t->requires(Task::OldDW, lb->pTemperatureLabel,               gnone);
   t->requires(Task::OldDW, lb->pSizeLabel,                      gnone);
-  t->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc,gnone);
+  t->requires(Task::NewDW, lb->pDefGradLabel_preReloc,gnone);
   t->requires(Task::NewDW, lb->pdTdtLabel_preReloc,             gnone);
   t->requires(Task::NewDW, lb->pLocalizedMPMLabel,              gnone);
 
@@ -1701,7 +1701,7 @@ void SerialMPM::scheduleInterpolateParticleVelToGridMom(SchedulerP& sched,
   t->requires(Task::NewDW, lb->pVelocityLabel_preReloc, gan,NGP);
   t->requires(Task::OldDW, lb->pXLabel,                 gan,NGP);
   t->requires(Task::OldDW, lb->pSizeLabel,              gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,gan,NGP);
 
   t->requires(Task::NewDW, lb->gMassLabel,          Ghost::None);
   t->modifies(lb->gVelocityStarLabel);
@@ -1754,7 +1754,7 @@ void SerialMPM::scheduleRefine(const PatchSet* patches,
   t->computes(lb->pVelocityLabel);
   t->computes(lb->pExternalForceLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pSizeLabel);
   t->computes(lb->NC_CCweightLabel);
@@ -1974,7 +1974,7 @@ void SerialMPM::initializePressureBC(const ProcessorGroup*,
           constParticleVariable<Matrix3> pDeformationMeasure;
           new_dw->get(px, lb->pXLabel, pset);
           new_dw->get(psize, lb->pSizeLabel, pset);
-          new_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel, pset);
+          new_dw->get(pDeformationMeasure, lb->pDefGradLabel, pset);
           constParticleVariable<int> pLoadCurveID;
           new_dw->get(pLoadCurveID, lb->pLoadCurveIDLabel, pset);
           ParticleVariable<Vector> pExternalForce;
@@ -2281,7 +2281,7 @@ void SerialMPM::interpolateParticlesToGrid(const ProcessorGroup*,
       old_dw->get(pvelocity,      lb->pVelocityLabel,      pset);
       old_dw->get(pTemperature,   lb->pTemperatureLabel,   pset);
       old_dw->get(psize,          lb->pSizeLabel,          pset);
-      old_dw->get(pFOld,          lb->pDeformationMeasureLabel,pset);
+      old_dw->get(pFOld,          lb->pDefGradLabel,pset);
       new_dw->get(pexternalforce, lb->pExtForceLabel_preReloc, pset);
       constParticleVariable<int> pLoadCurveID;
       if (flags->d_useCBDI) {
@@ -2852,7 +2852,7 @@ void SerialMPM::computeInternalForce(const ProcessorGroup*,
       old_dw->get(pvol,    lb->pVolumeLabel,                 pset);
       old_dw->get(pstress, lb->pStressLabel,                 pset);
       old_dw->get(psize,   lb->pSizeLabel,                   pset);
-      old_dw->get(pFOld,   lb->pDeformationMeasureLabel,     pset);
+      old_dw->get(pFOld,   lb->pDefGradLabel,     pset);
 
       new_dw->get(gvolume, lb->gVolumeLabel, dwi, patch, Ghost::None, 0);
 
@@ -3377,7 +3377,7 @@ void SerialMPM::applyExternalLoads(const ProcessorGroup* ,
 
       old_dw->get(px, lb->pXLabel, pset);
       old_dw->get(psize, lb->pSizeLabel, pset);
-      old_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure, lb->pDefGradLabel, pset);
       new_dw->allocateAndPut(pExternalForce_new, 
                              lb->pExtForceLabel_preReloc,  pset);
 
@@ -3837,7 +3837,7 @@ void SerialMPM::interpolateToParticlesAndUpdate(const ProcessorGroup*,
       old_dw->get(pTemperature, lb->pTemperatureLabel,               pset);
       new_dw->get(pdTdt,        lb->pdTdtLabel_preReloc,             pset);
       new_dw->get(pLocalized,   lb->pLocalizedMPMLabel,              pset);
-      new_dw->get(pFNew,        lb->pDeformationMeasureLabel_preReloc,pset);
+      new_dw->get(pFNew,        lb->pDefGradLabel_preReloc,pset);
       new_dw->getModifiable(pvolume,  lb->pVolumeLabel_preReloc,     pset);
 
       new_dw->allocateAndPut(pvelocitynew, lb->pVelocityLabel_preReloc,   pset);
@@ -4087,7 +4087,7 @@ void SerialMPM::interpolateToParticlesAndUpdateMom1(const ProcessorGroup*,
       old_dw->get(pdisp,        lb->pDispLabel,                      pset);
       old_dw->get(pmass,        lb->pMassLabel,                      pset);
       old_dw->get(pvelocity,    lb->pVelocityLabel,                  pset);
-      old_dw->get(pFOld,        lb->pDeformationMeasureLabel,        pset);
+      old_dw->get(pFOld,        lb->pDefGradLabel,        pset);
       old_dw->get(psize,        lb->pSizeLabel,                      pset);
       old_dw->get(pids,                lb->pParticleIDLabel,          pset);
 	  
@@ -4229,7 +4229,7 @@ void SerialMPM::interpolateToParticlesAndUpdateMom2(const ProcessorGroup*,
       old_dw->get(pids,         lb->pParticleIDLabel,                pset);
       old_dw->get(pTemperature, lb->pTemperatureLabel,               pset);
       new_dw->get(pdTdt,        lb->pdTdtLabel_preReloc,             pset);
-      new_dw->get(pFNew,        lb->pDeformationMeasureLabel_preReloc, pset);
+      new_dw->get(pFNew,        lb->pDefGradLabel_preReloc, pset);
       new_dw->get(pLocalized,         lb->pLocalizedMPMLabel,        pset);
 
       new_dw->getModifiable(pvolume,  lb->pVolumeLabel_preReloc,     pset);
@@ -4775,7 +4775,7 @@ void SerialMPM::interpolateParticleVelToGridMom(const ProcessorGroup*,
       old_dw->get(pmass,          lb->pMassLabel,               pset);
       old_dw->get(psize,          lb->pSizeLabel,               pset);
       new_dw->get(pvelocity,      lb->pVelocityLabel_preReloc,  pset);
-      old_dw->get(pFOld,          lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pFOld,          lb->pDefGradLabel, pset);
 
       // Create arrays for the grid data
       constNCVariable<double> gmass;

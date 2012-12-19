@@ -37,6 +37,7 @@
 #include <CCA/Components/MPM/ConstitutiveModel/PlasticityModels/DamageModelFactory.h>
 #include <CCA/Components/MPM/ConstitutiveModel/PlasticityModels/MPMEquationOfStateFactory.h>
 #include <CCA/Components/MPM/ConstitutiveModel/PlasticityModels/PlasticityState.h>
+#include <CCA/Components/MPM/GradientComputer/DisplacementGradientComputer.h>
 
 #include <CCA/Ports/DataWarehouse.h>
 
@@ -599,7 +600,7 @@ ViscoPlastic::computeStressTensor(const PatchSubset* patches,
     // Note : The deformation gradient from the old datawarehouse is no
     // longer used, but it is updated for possible use elsewhere
     constParticleVariable<Matrix3>  pDeformGrad;
-    old_dw->get(pDeformGrad, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDeformGrad, lb->pDefGradLabel, pset);
 
     // Get the particle location, particle size, particle mass, particle volume
     constParticleVariable<Point> px;
@@ -613,9 +614,6 @@ ViscoPlastic::computeStressTensor(const PatchSubset* patches,
     constParticleVariable<Vector> pVelocity;
     constNCVariable<Vector> gVelocity;
     old_dw->get(pVelocity, lb->pVelocityLabel, pset);
-    Ghost::GhostType  gac = Ghost::AroundCells;
-//    new_dw->get(gVelocity, lb->gVelocityLabel, dwi, patch, gac, NGN);
-     new_dw->get(gVelocity, lb->gVelocityStarLabel, dwi, patch, gac, NGN);
 
     // Get the particle stress and temperature
     constParticleVariable<Matrix3> pStress;
@@ -627,14 +625,6 @@ ViscoPlastic::computeStressTensor(const PatchSubset* patches,
     // Get the time increment (delT)
     delt_vartype delT;
     old_dw->get(delT, lb->delTLabel, getLevel(patches));
-
-    constParticleVariable<Short27> pgCode;
-    constNCVariable<Vector> GVelocity;
-    if (flag->d_fracture) {
-      new_dw->get(pgCode, lb->pgCodeLabel, pset);
-//      new_dw->get(GVelocity,lb->GVelocityLabel, dwi, patch, gac, NGN);
-      new_dw->get(GVelocity,lb->GVelocityStarLabel, dwi, patch, gac, NGN);
-    }
 
    //Get ParticleID
    constParticleVariable<long64> pParticleID;
@@ -666,17 +656,18 @@ ViscoPlastic::computeStressTensor(const PatchSubset* patches,
     constParticleVariable<int> pLocalized;
     old_dw->get(pLocalized, pLocalizedLabel, pset);
 
+    constParticleVariable<Matrix3> pVelGrad_new;
+    new_dw->get(pVelGrad_new,  lb->pVelGradLabel_preReloc, pset);
+
+    ParticleVariable<Matrix3> pDeformGrad_new;
+    ParticleVariable<double> pVolume_deformed;
+    new_dw->getModifiable(pDeformGrad_new,  lb->pDefGradLabel_preReloc, pset);
+    new_dw->getModifiable(pVolume_deformed, lb->pVolumeLabel_preReloc,  pset);
+
     // Create and allocate arrays for storing the updated information
     // GLOBAL
-    ParticleVariable<Matrix3> pDeformGrad_new, pStress_new;
-    ParticleVariable<double> pVolume_deformed;
-    new_dw->allocateAndPut(pDeformGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
-    new_dw->allocateAndPut(pStress_new,      
-                           lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVolume_deformed, 
-                           lb->pVolumeLabel_preReloc,              pset);
-//                           lb->pVolumeDeformedLabel,              pset);
+    ParticleVariable<Matrix3> pStress_new;
+    new_dw->allocateAndPut(pStress_new, lb->pStressLabel_preReloc, pset);
 
     // LOCAL
     ParticleVariable<Matrix3> pLeftStretch_new, pRotation_new;
@@ -726,27 +717,10 @@ ViscoPlastic::computeStressTensor(const PatchSubset* patches,
 
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
-      // Calculate the velocity gradient (L) from the grid velocity
 
-      interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDeformGrad[idx]);
-
-      Matrix3 tensorL(0.0);
-      short pgFld[27];
-      if (flag->d_fracture) {
-        for(int k=0; k<27; k++) 
-          pgFld[k]=pgCode[idx][k];
-
-        computeVelocityGradient(tensorL,ni,d_S,oodx,pgFld,gVelocity,GVelocity);
-      } else {
-        computeVelocityGradient(tensorL,ni,d_S,oodx,gVelocity);
-      }
-
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient F_n^np1 = dudx * dt + Identity
       // Update the deformation gradient tensor to its time n+1 value.
-      Matrix3 tensorFinc = tensorL*delT + one;
-      tensorF_new = tensorFinc*pDeformGrad[idx];
-      pDeformGrad_new[idx] = tensorF_new;
+      Matrix3 tensorL = pVelGrad_new[idx];
+      tensorF_new = pDeformGrad_new[idx];
       double J = tensorF_new.Determinant();
 
       if(d_setStressToZero && pLocalized[idx]){
@@ -755,22 +729,8 @@ ViscoPlastic::computeStressTensor(const PatchSubset* patches,
         tensorF_new = pDeformGrad[idx];
       }
 
-      // Check 1: Look at Jacobian
-      if (!(J > 0.0)) {
-        cerr << getpid() ;
-        cerr << "**ERROR** Negative Jacobian of deformation gradient"
-             << " in particle " << pParticleID[idx] << endl;
-        cerr << "l = " << tensorL << endl;
-        cerr << "F_old = " << pDeformGrad[idx] << endl;
-        cerr << "F_inc = " << tensorFinc << endl;
-        cerr << "F_new = " << tensorF_new << endl;
-        cerr << "J = " << J << endl;
-        throw ParameterNotFound("**ERROR**:ViscoPlastic", __FILE__, __LINE__);
-      }
-
       // Calculate the current density and deformed volume
       double rho_cur = rho_0/J;
-      pVolume_deformed[idx]=pMass[idx]/rho_cur;
       if (d_usePolarDecompositionRMB) {
           tensorF_new.polarDecompositionRMB(tensorV, tensorR);
       } else {
@@ -1102,10 +1062,14 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
                                  pLeftStretch, pRotation;
   constNCVariable<Vector>        gDisp;
 
+  constParticleVariable<Matrix3> pDispGrad_new;
+  ParticleVariable<Matrix3>      pDeformGrad_new;
+  ParticleVariable<double>       pVolume_deformed;
+
   ParticleVariable<int>          pLocalized_new;
-  ParticleVariable<Matrix3>      pDeformGrad_new, pStress_new,
+  ParticleVariable<Matrix3>      pStress_new,
                                  pLeftStretch_new, pRotation_new;
-  ParticleVariable<double>       pVolume_deformed, pPlasticStrain_new, 
+  ParticleVariable<double>       pPlasticStrain_new, 
                                  pDamage_new, pPorosity_new, pStrainRate_new,
                                  pPlasticTemp_new, pPlasticTempInc_new,
                                  pdTdt,  pFailureVariable_new;
@@ -1153,7 +1117,7 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
     old_dw->get(pTempPrev,    lb->pTempPreviousLabel,       pset); 
     old_dw->get(px,           lb->pXLabel,                  pset);
     old_dw->get(psize,        lb->pSizeLabel,               pset);    
-    old_dw->get(pDeformGrad,  lb->pDeformationMeasureLabel, pset);
+    old_dw->get(pDeformGrad,  lb->pDefGradLabel,            pset);
     old_dw->get(pStress,      lb->pStressLabel,             pset);
     old_dw->get(pParticleID,  lb->pParticleIDLabel,         pset);
 
@@ -1169,14 +1133,15 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
     old_dw->get(pLocalized,          pLocalizedLabel,      pset);
     old_dw->get(pFailureVariable, pFailureVariableLabel, pset);
 
+    new_dw->get(pDispGrad_new,    lb->pDispGradLabel_preReloc, pset);
+
+    new_dw->getModifiable(pDeformGrad_new,  lb->pDefGradLabel_preReloc,  pset);
+    new_dw->getModifiable(pVolume_deformed, lb->pVolumeDeformedLabel,    pset);
+
     //Create and allocate arrays for storing the updated information
     // GLOBAL
-    new_dw->allocateAndPut(pDeformGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pStress_new,      
                            lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVolume_deformed, 
-                           lb->pVolumeDeformedLabel,              pset);
     new_dw->allocateAndPut(pdTdt, 
                            lb->pdTdtLabel_preReloc,   pset);
 
@@ -1250,28 +1215,11 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
 //       Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
 
-//       Calculate the displacement gradient
-//       interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S);
-      interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDeformGrad[idx]);
-      computeGrad(DispGrad, ni, d_S, oodx, gDisp);
-
-//       Compute the deformation gradient increment
-      incDefGrad = DispGrad + One;
-//       double Jinc = incDefGrad.Determinant();
-
-//       Update the deformation gradient
-      DefGrad = incDefGrad*pDeformGrad[idx];
-      pDeformGrad_new[idx] = DefGrad;
+      DispGrad = pDispGrad_new[idx];
+      DefGrad = pDeformGrad_new[idx];
       double J = DefGrad.Determinant();
 
-//       Check 1: Look at Jacobian
-      if (!(J > 0.0)) {
-        cerr << getpid() 
-             << "**ERROR** Negative Jacobian of deformation gradient" << endl;
-        throw ParameterNotFound("**ERROR**:ViscoPlastic:Implicit", __FILE__, __LINE__);
-      }
-
-//       Calculate the current density and deformed volume
+//    Calculate the current density and deformed volume
       double rho_cur = rho_0/J;
       double volold = (pMass[idx]/rho_0);
       pVolume_deformed[idx]=volold*J;
@@ -1519,6 +1467,7 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
   constParticleVariable<Matrix3> pDeformGrad, pStress;
   constNCVariable<Vector>        gDisp;
 
+  constParticleVariable<Matrix3> pDispGrad_new;
   ParticleVariable<Matrix3>      pDeformGrad_new, pStress_new;
   ParticleVariable<double>       pVolume_deformed, pPlasticStrain_new; 
 
@@ -1581,21 +1530,22 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
     parent_old_dw->get(pTemperature, lb->pTemperatureLabel,        pset);
     parent_old_dw->get(px,           lb->pXLabel,                  pset);
     parent_old_dw->get(psize,        lb->pSizeLabel,               pset);    
-    parent_old_dw->get(pDeformGrad,  lb->pDeformationMeasureLabel, pset);
+    parent_old_dw->get(pDeformGrad,  lb->pDefGradLabel,            pset);
     parent_old_dw->get(pStress,      lb->pStressLabel,             pset);
 
     // GET LOCAL DATA 
     parent_old_dw->get(pPlasticStrain,      pPlasticStrainLabel,  pset);
 //     parent_old_dw->get(pPorosity,           pPorosityLabel,       pset);
 
+    new_dw->get(pDispGrad_new,  lb->pDispGradLabel_preReloc, pset);
+
+    new_dw->getModifiable(pDeformGrad_new,  lb->pDefGradLabel_preReloc, pset);
+    new_dw->getModifiable(pVolume_deformed, lb->pVolumeLabel_preReloc,  pset);
+
     // Create and allocate arrays for storing the updated information
     // GLOBAL
-    new_dw->allocateAndPut(pDeformGrad_new,  
-                           lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(pStress_new,      
                            lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pVolume_deformed, 
-                           lb->pVolumeDeformedLabel,              pset);
 
     // LOCAL
     new_dw->allocateAndPut(pPlasticStrain_new,      
@@ -1623,6 +1573,7 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
     d_plastic->allocateAndPutInternalVars(pset, new_dw);
     
     // Loop thru particles
+    DisplacementGradientComputer dg(flag);
     ParticleSubset::iterator iter = pset->begin(); 
     for( ; iter != pset->end(); iter++){
       particleIndex idx = *iter;
@@ -1632,37 +1583,16 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
       // Calculate the displacement gradient
 //       interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S);
       interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],pDeformGrad[idx]);      
-      computeGradAndBmats(DispGrad,ni,d_S, oodx, gDisp, l2g,B, Bnl, dof);
-
-      // Compute the deformation gradient increment
-      incDefGrad = DispGrad + One;
-      //double Jinc = incDefGrad.Determinant();
-
-      //CSTir << " particle = " << idx << " Jinc = " << Jinc << endl;
+      dg.computeBmats(ni,d_S, oodx, l2g,B, Bnl, dof);
 
       // Update the deformation gradient
-      DefGrad = incDefGrad*pDeformGrad[idx];
-      pDeformGrad_new[idx] = DefGrad;
+      DefGrad = pDeformGrad_new[idx];
       double J = DefGrad.Determinant();
 
-      // Check 1: Look at Jacobian
-      if (!(J > 0.0)) {
-        cerr << getpid() 
-             << "**ERROR** Negative Jacobian of deformation gradient" << endl;
-        throw ParameterNotFound("**ERROR**:ViscoPlastic:Implicit", __FILE__, __LINE__);
-      }
-
-      //CSTir << " particle = " << idx << " J = " << J << endl;
-
-//       cout << "rho_0= " << rho_0 << " J= " << J << " idx= " << idx << "\n";
-//       cout << "pMass[idx]= " << pMass[idx] << " \n";
       // Calculate the current density and deformed volume
       double rho_cur = rho_0/J;
       double volold = (pMass[idx]/rho_0);
       pVolume_deformed[idx] = volold*J;
-
-      //CSTir << " particle = " << idx << " rho = " << rho_cur 
-      //      << " vol_new = " << pVolume_deformed[idx] << endl;
 
       // Compute the current strain and strain rate
       incFFt = incDefGrad*incDefGrad.Transpose(); 

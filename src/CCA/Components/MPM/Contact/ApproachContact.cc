@@ -151,7 +151,7 @@ void ApproachContact::exMomInterpolated(const ProcessorGroup*,
       old_dw->get(pmass,               lb->pMassLabel,               pset);
       old_dw->get(pvolume,             lb->pVolumeLabel,             pset);
       old_dw->get(psize,               lb->pSizeLabel,               pset);
-      old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient, lb->pDefGradLabel, pset);
 
       gsurfnorm[m].initialize(Vector(0.0,0.0,0.0));
 
@@ -545,7 +545,7 @@ void ApproachContact::addComputesAndRequiresInterpolated(SchedulerP & sched,
   t->requires(Task::OldDW, lb->pXLabel,                 Ghost::AroundNodes, NGP);
   t->requires(Task::OldDW, lb->pMassLabel,              Ghost::AroundNodes, NGP);
   t->requires(Task::OldDW, lb->pVolumeLabel,            Ghost::AroundNodes, NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,Ghost::AroundNodes, NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,Ghost::AroundNodes, NGP);
   t->requires(Task::OldDW, lb->pSizeLabel,              Ghost::AroundNodes, NGP);
   t->requires(Task::NewDW, lb->gMassLabel,              Ghost::AroundNodes, 1);
   t->requires(Task::NewDW, lb->gVolumeLabel,            Ghost::None);

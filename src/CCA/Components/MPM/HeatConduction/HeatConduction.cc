@@ -78,7 +78,7 @@ void HeatConduction::scheduleComputeInternalHeatRate(SchedulerP& sched,
   t->requires(Task::OldDW, d_lb->pSizeLabel,                      gan, NGP);
   t->requires(Task::OldDW, d_lb->pMassLabel,                      gan, NGP);
   t->requires(Task::OldDW, d_lb->pVolumeLabel,                    gan, NGP);
-  t->requires(Task::OldDW, d_lb->pDeformationMeasureLabel,        gan, NGP);
+  t->requires(Task::OldDW, d_lb->pDefGradLabel,        gan, NGP);
   t->requires(Task::NewDW, d_lb->gTemperatureLabel,               gan, 2*NGN);
   t->requires(Task::NewDW, d_lb->gMassLabel,                      gnone);
   t->computes(d_lb->gdTdtLabel);
@@ -112,7 +112,7 @@ void HeatConduction::scheduleComputeNodalHeatFlux(SchedulerP& sched,
   Ghost::GhostType  gnone = Ghost::None;
   t->requires(Task::OldDW, d_lb->pXLabel,             gan, NGP);
   t->requires(Task::OldDW, d_lb->pSizeLabel,          gan, NGP);
-  t->requires(Task::OldDW, d_lb->pDeformationMeasureLabel, gan, NGP);
+  t->requires(Task::OldDW, d_lb->pDefGradLabel, gan, NGP);
   t->requires(Task::OldDW, d_lb->pMassLabel,          gan, NGP);
   t->requires(Task::NewDW, d_lb->gTemperatureLabel,   gac, 2*NGP);
   t->requires(Task::NewDW, d_lb->gMassLabel,          gnone);
@@ -235,7 +235,7 @@ void HeatConduction::computeInternalHeatRate(const ProcessorGroup*,
       old_dw->get(pvol,         d_lb->pVolumeLabel,                    pset);
       old_dw->get(pMass,        d_lb->pMassLabel,                      pset);
       old_dw->get(psize,        d_lb->pSizeLabel,                      pset);
-      old_dw->get(deformationGradient, d_lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient, d_lb->pDefGradLabel, pset);
       new_dw->get(gTemperature, d_lb->gTemperatureLabel, dwi, patch, gac,2*NGN);
       new_dw->get(gMass,        d_lb->gMassLabel,        dwi, patch, gnone, 0);
       new_dw->allocateAndPut(gdTdt, d_lb->gdTdtLabel,    dwi, patch);
@@ -423,7 +423,7 @@ void HeatConduction::computeNodalHeatFlux(const ProcessorGroup*,
       old_dw->get(px,           d_lb->pXLabel,           pset);
       old_dw->get(pMass,        d_lb->pMassLabel,        pset);
       old_dw->get(psize,        d_lb->pSizeLabel,        pset);
-      old_dw->get(deformationGradient, d_lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient, d_lb->pDefGradLabel, pset);
       
       new_dw->allocateAndPut(gHeatFlux, d_lb->gHeatFluxLabel,  dwi, patch);  
       gHeatFlux.initialize(Vector(0.0));

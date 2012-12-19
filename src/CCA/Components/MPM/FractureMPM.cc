@@ -166,7 +166,7 @@ void FractureMPM::scheduleInitialize(const LevelP& level,
   t->computes(lb->pVelocityLabel);
   t->computes(lb->pExternalForceLabel);
   t->computes(lb->pParticleIDLabel);
-  t->computes(lb->pDeformationMeasureLabel);
+  t->computes(lb->pDefGradLabel);
   t->computes(lb->pStressLabel);
   t->computes(lb->pSizeLabel);
   t->computes(lb->pDispGradsLabel);
@@ -250,7 +250,7 @@ void FractureMPM::scheduleInitializeAddedMaterial(const LevelP& level,
   t->computes(lb->pVelocityLabel,          add_matl);
   t->computes(lb->pExternalForceLabel,     add_matl);
   t->computes(lb->pParticleIDLabel,        add_matl);
-  t->computes(lb->pDeformationMeasureLabel,add_matl);
+  t->computes(lb->pDefGradLabel,add_matl);
   t->computes(lb->pStressLabel,            add_matl);
   t->computes(lb->pSizeLabel,              add_matl);
 
@@ -425,7 +425,7 @@ void FractureMPM::scheduleInterpolateParticlesToGrid(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pSizeLabel,             gan,NGP);
   t->requires(Task::NewDW, lb->pExtForceLabel_preReloc,gan,NGP);
 //t->requires(Task::OldDW, lb->pExternalHeatRateLabel, gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,   gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,   gan,NGP);
 
 
 
@@ -559,7 +559,7 @@ void FractureMPM::scheduleComputeParticleTempFromGrid(SchedulerP& sched,
   t->requires(Task::NewDW, lb->gTemperatureLabel,       gac, NGN);
   t->requires(Task::NewDW, lb->GTemperatureLabel,       gac, NGN);
   t->requires(Task::NewDW,lb->pgCodeLabel,              gan, NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,gan,NGP);
   t->computes(lb->pTempCurrentLabel);
   sched->addTask(t, patches, matls);
 }
@@ -591,7 +591,7 @@ void FractureMPM::scheduleComputeArtificialViscosity(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pSizeLabel,              Ghost::None);
   t->requires(Task::NewDW, lb->gVelocityStarLabel,      gac, NGN);
   t->requires(Task::NewDW, lb->GVelocityStarLabel,      gac, NGN);  // for FractureMPM
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,Ghost::None);
+  t->requires(Task::OldDW, lb->pDefGradLabel,Ghost::None);
   t->computes(lb->p_qLabel);
 
   sched->addTask(t, patches, matls);
@@ -645,7 +645,7 @@ void FractureMPM::scheduleComputeInternalForce(SchedulerP& sched,
   t->requires(Task::OldDW,lb->pXLabel,                    gan,NGP);
   t->requires(Task::OldDW,lb->pMassLabel,                 gan,NGP);
   t->requires(Task::OldDW,lb->pSizeLabel,                 gan,NGP);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,   gan,NGP);
+  t->requires(Task::OldDW, lb->pDefGradLabel,   gan,NGP);
 
 
   // for FractureMPM
@@ -891,7 +891,7 @@ void FractureMPM::scheduleInterpolateToParticlesAndUpdate(SchedulerP& sched,
   t->modifies(lb->pVolumeLabel_preReloc);
   // for thermal stress analysis
   t->requires(Task::NewDW, lb->pTempCurrentLabel,      gnone);
-  t->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc,        gnone);
+  t->requires(Task::NewDW, lb->pDefGradLabel_preReloc,        gnone);
 
 
 
@@ -1356,7 +1356,7 @@ void FractureMPM::interpolateParticlesToGrid(const ProcessorGroup*,
       old_dw->get(pTemperature,   lb->pTemperatureLabel,   pset);
       old_dw->get(psize,          lb->pSizeLabel,          pset);
       new_dw->get(pexternalforce, lb->pExtForceLabel_preReloc, pset);
-      old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
 
 
       // for FractureMPM
@@ -1625,7 +1625,7 @@ void FractureMPM::computeArtificialViscosity(const ProcessorGroup*,
       new_dw->get(pvol,      lb->pVolumeLabel,                 pset);
       old_dw->get(psize,     lb->pSizeLabel,                   pset);
       new_dw->allocateAndPut(p_q,    lb->p_qLabel,             pset);
-      old_dw->get(pDeformationMeasure,  lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure,  lb->pDefGradLabel, pset);
 
      
       // for FractureMPM
@@ -1830,7 +1830,7 @@ void FractureMPM::computeInternalForce(const ProcessorGroup*,
       old_dw->get(pstress, lb->pStressLabel,                 pset);
       old_dw->get(psize,   lb->pSizeLabel,                   pset);
       new_dw->get(gmass,   lb->gMassLabel, dwi, patch, Ghost::None, 0);
-      old_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure, lb->pDefGradLabel, pset);
 
 
       new_dw->allocateAndPut(gstress,      lb->gStressForSavingLabel,dwi,patch);
@@ -2573,7 +2573,7 @@ void FractureMPM::computeParticleTempFromGrid(const ProcessorGroup*,
 
       old_dw->get(px,    lb->pXLabel,    pset);
       old_dw->get(psize, lb->pSizeLabel, pset);
-      old_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(pDeformationMeasure, lb->pDefGradLabel, pset);
 
 
       constParticleVariable<Short27> pgCode;
@@ -2691,7 +2691,7 @@ void FractureMPM::interpolateToParticlesAndUpdate(const ProcessorGroup*,
       old_dw->get(pids,                  lb->pParticleIDLabel,            pset);
       old_dw->get(pvelocity,             lb->pVelocityLabel,              pset);
       old_dw->get(pTemperature,          lb->pTemperatureLabel,           pset);
-      new_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel_preReloc, pset);
+      new_dw->get(pDeformationMeasure, lb->pDefGradLabel_preReloc, pset);
 
 
       // for thermal stress analysis
@@ -3018,7 +3018,7 @@ FractureMPM::refine(const ProcessorGroup*,
         new_dw->allocateAndPut(pexternalforce, lb->pExternalForceLabel, pset);
         new_dw->allocateAndPut(pID,            lb->pParticleIDLabel,    pset);
         new_dw->allocateAndPut(pdisp,          lb->pDispLabel,          pset);
-        new_dw->allocateAndPut(pdeform,        lb->pDeformationMeasureLabel, pset);
+        new_dw->allocateAndPut(pdeform,        lb->pDefGradLabel, pset);
         new_dw->allocateAndPut(pstress,        lb->pStressLabel,        pset);
         if (flags->d_useLoadCurves)
                   new_dw->allocateAndPut(pLoadCurve,   lb->pLoadCurveIDLabel,   pset);

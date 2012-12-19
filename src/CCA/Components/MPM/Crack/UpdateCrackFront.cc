@@ -138,7 +138,7 @@ void Crack::addComputesAndRequiresRecollectCrackFrontSegments(Task* t,
   t->requires(Task::NewDW, lb->gMassLabel, gac, NGC);
   t->requires(Task::NewDW, lb->GMassLabel, gac, NGC);
   t->requires(Task::OldDW,lb->pSizeLabel, Ghost::None);
-  t->requires(Task::OldDW,lb->pDeformationMeasureLabel, Ghost::None);
+  t->requires(Task::OldDW,lb->pDefGradLabel, Ghost::None);
 }
 
 void Crack::RecollectCrackFrontSegments(const ProcessorGroup*,
@@ -180,7 +180,7 @@ void Crack::RecollectCrackFrontSegments(const ProcessorGroup*,
       constParticleVariable<Matrix3> psize;
       constParticleVariable<Matrix3> deformationGradient;
       old_dw->get(psize, lb->pSizeLabel, pset);
-      old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient, lb->pDefGradLabel, pset);
 
       if(d_doCrackPropagation) {
 

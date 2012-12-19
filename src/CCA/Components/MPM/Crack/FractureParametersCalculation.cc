@@ -77,7 +77,7 @@ void Crack::addComputesAndRequiresGetNodalSolutions(Task* t,
   t->requires(Task::NewDW,lb->pVelGradsLabel,                     gan,NGP);
   t->requires(Task::OldDW,lb->pXLabel,                            gan,NGP);
   t->requires(Task::OldDW, lb->pSizeLabel,                        gan,NGP);
-  t->requires(Task::OldDW,lb->pDeformationMeasureLabel,           gan,NGP);
+  t->requires(Task::OldDW,lb->pDefGradLabel,           gan,NGP);
   t->requires(Task::NewDW,lb->gMassLabel,                         gnone);
   t->requires(Task::NewDW,lb->GMassLabel,                         gnone);
 
@@ -146,7 +146,7 @@ void Crack::GetNodalSolutions(const ProcessorGroup*,
 
       old_dw->get(px,                   lb->pXLabel,                   pset);
       old_dw->get(psize,lb->pSizeLabel,                pset);
-      old_dw->get(deformationGradient,  lb->pDeformationMeasureLabel,  pset);
+      old_dw->get(deformationGradient,  lb->pDefGradLabel,  pset);
 
       // Get nodal mass
       constNCVariable<double> gmass, Gmass;
@@ -267,7 +267,7 @@ void Crack::addComputesAndRequiresCalculateFractureParameters(Task* t,
   t->requires(Task::NewDW, lb->gVelocityLabel,            gac,NGC);
   t->requires(Task::NewDW, lb->GVelocityLabel,            gac,NGC);
   t->requires(Task::OldDW, lb->pSizeLabel,            Ghost::None);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel, Ghost::None);
+  t->requires(Task::OldDW, lb->pDefGradLabel, Ghost::None);
 }
 
 void Crack::CalculateFractureParameters(const ProcessorGroup*,
@@ -335,7 +335,7 @@ void Crack::CalculateFractureParameters(const ProcessorGroup*,
       constParticleVariable<Matrix3> psize;
       constParticleVariable<Matrix3> deformationGradient;
       old_dw->get(psize, lb->pSizeLabel, pset);
-      old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient, lb->pDefGradLabel, pset);
 
       // Allocate memories for cfSegJ and cfSegK
       int cfNodeSize=(int)cfSegNodes[m].size();

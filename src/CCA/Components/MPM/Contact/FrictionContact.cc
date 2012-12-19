@@ -154,7 +154,7 @@ void FrictionContact::exMomInterpolated(const ProcessorGroup*,
       old_dw->get(pmass,               lb->pMassLabel,               pset);
       old_dw->get(pvolume,             lb->pVolumeLabel,             pset);
       old_dw->get(psize,               lb->pSizeLabel,               pset);
-      old_dw->get(deformationGradient,  lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient,  lb->pDefGradLabel, pset);
 
       gsurfnorm[m].initialize(Vector(0.0,0.0,0.0));
 
@@ -239,7 +239,7 @@ void FrictionContact::exMomInterpolated(const ProcessorGroup*,
 
       old_dw->get(px,                   lb->pXLabel,                  pset);
       old_dw->get(psize,                lb->pSizeLabel,               pset);
-      old_dw->get(deformationGradient,  lb->pDeformationMeasureLabel, pset);
+      old_dw->get(deformationGradient,  lb->pDefGradLabel, pset);
       old_dw->get(pstress,              lb->pStressLabel,             pset);
 
       new_dw->allocateAndPut(gnormtraction[m],lb->gNormTractionLabel,dwi,patch);
@@ -648,7 +648,7 @@ void FrictionContact::addComputesAndRequiresInterpolated(SchedulerP & sched,
   t->requires(Task::OldDW, lb->pVolumeLabel,      gp, ngc_p);
   t->requires(Task::OldDW, lb->pStressLabel,      gp, ngc_p);
   t->requires(Task::OldDW, lb->pSizeLabel,        gp, ngc_p);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel, gp, ngc_p);
+  t->requires(Task::OldDW, lb->pDefGradLabel, gp, ngc_p);
   t->requires(Task::NewDW, lb->gMassLabel,        Ghost::AroundNodes, 1);
   t->requires(Task::NewDW, lb->gVolumeLabel,           Ghost::None);
   t->requires(Task::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);

@@ -303,13 +303,14 @@ void NonLocalDruckerPrager::computeStressTensor(const PatchSubset* patches,
 
     // Create array for the particle position
     ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new, velGrad;
     constParticleVariable<Matrix3> deformationGradient;
     constParticleVariable<Matrix3> stress_old;
     ParticleVariable<Matrix3> stress_new;
     constParticleVariable<Point> px;
     constParticleVariable<double> pmass;
-    ParticleVariable<double> pvolume,p_q;
+    constParticleVariable<double> pvolume;
+    ParticleVariable<double> p_q;
     constParticleVariable<Vector> pvelocity;
     constParticleVariable<Matrix3> psize;
     ParticleVariable<double> pdTdt;
@@ -332,16 +333,18 @@ void NonLocalDruckerPrager::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pmass,               lb->pMassLabel,                     pset);
     old_dw->get(psize,               lb->pSizeLabel,                     pset);
     old_dw->get(pvelocity,           lb->pVelocityLabel,                 pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel,       pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,                  pset);
     old_dw->get(stress_old,             lb->pStressLabel,                   pset);
     old_dw->get(eta_old,             etaLabel,                           pset);
     old_dw->get(eta_nl_old,             eta_nlLabel,                           pset);
     old_dw->get(k_o_dist,             k_o_distLabel,                           pset);
+
+    new_dw->get(pvolume,                 lb->pVolumeLabel_preReloc,  pset);
+    new_dw->get(deformationGradient_new, lb->pDefGradLabel_preReloc, pset);
+    new_dw->get(velGrad,                 lb->pVelGradLabel_preReloc, pset);
+
     new_dw->allocateAndPut(stress_new,  lb->pStressLabel_preReloc,      pset);
-    new_dw->allocateAndPut(pvolume,  lb->pVolumeLabel_preReloc,          pset);
     new_dw->allocateAndPut(pdTdt,    lb->pdTdtLabel_preReloc,            pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                                  lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(p_q,      lb->p_qLabel_preReloc,              pset);
 
     new_dw->allocateAndPut(eta_new,  etaLabel_preReloc,                  pset);
@@ -350,12 +353,11 @@ void NonLocalDruckerPrager::computeStressTensor(const PatchSubset* patches,
 
     k_o_dist_new.copyData(k_o_dist);
 
-    ParticleVariable<Matrix3> velGrad,rotation,trial_stress;
+    ParticleVariable<Matrix3> rotation,trial_stress;
     ParticleVariable<double> f_trial,pdlambda,rho_cur;
     ParticleVariable<int> softened;
     ParticleVariable<double> k_o;
     new_dw->allocateTemporary(k_o, pset);
-    new_dw->allocateTemporary(velGrad,      pset);
     new_dw->allocateTemporary(rotation,     pset);
     new_dw->allocateTemporary(pdlambda,     pset);
     new_dw->allocateTemporary(trial_stress, pset);
@@ -396,62 +398,15 @@ void NonLocalDruckerPrager::computeStressTensor(const PatchSubset* patches,
     double rho_orig = matl->getInitialDensity();
     Matrix3 tensorL(0.0);
 
-    // Get the deformation gradients first.  This is done differently
-    // depending on whether or not the grid is reset.  (Should it be??? -JG)
-
-      constNCVariable<Vector> gvelocity;
-      new_dw->get(gvelocity, lb->gVelocityStarLabel,dwi,patch,gac,NGN);
-      for(ParticleSubset::iterator iter=pset->begin();iter!=pset->end();iter++){
-        particleIndex idx = *iter;
-
-	//re-zero the velocity gradient:
-	tensorL.set(0.0);
-        if(!flag->d_axisymmetric){
-	  // Get the node indices that surround the cell
-	  interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],
-						    deformationGradient[idx]);
-
-	  computeVelocityGradient(tensorL,ni,d_S, oodx, gvelocity);
-        } else {  // axi-symmetric kinematics
-	  // Get the node indices that surround the cell
-	  interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-							      psize[idx],deformationGradient[idx]);
-	  // x -> r, y -> z, z -> theta
-	  computeAxiSymVelocityGradient(tensorL,ni,d_S,S,oodx,gvelocity,px[idx]);
-        }
-        velGrad[idx]=tensorL;
-
-	// try subcycling to update the deformation gradient:
-	//double delTsub= delT/20.0;
-	int nsubs=1;
-	double delTsub= delT/float(nsubs);
-	Matrix3 incF;
-	incF.Identity();
-	for(int i=0;i<(nsubs);i++){
-	  incF= (tensorL*delTsub+Identity)*incF;
-	}
-
-	deformationGradient_new[idx]=incF*deformationGradient[idx];
-
-
-	J = deformationGradient_new[idx].Determinant();
-	if (J<=0){
-	  cout<< "ERROR, negative J! "<<endl;
-	  cout<<"J= "<<J<<endl;
-	  cout<<"L= "<<tensorL<<endl;
-	}
-	// Update particle volumes
-	pvolume[idx]=(pmass[idx]/rho_orig)*J;
-	rho_cur[idx] = rho_orig/J;      
-      }
-
-
-
     for(ParticleSubset::iterator iter = pset->begin();iter!=pset->end();iter++){
       particleIndex idx = *iter;
       //cout<<"BEGIN eta_nl_old["<<idx<<"]= "<<eta_nl_old[idx]<<endl;
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
+
+	J = deformationGradient_new[idx].Determinant();
+	// Update particle volumes
+	rho_cur[idx] = rho_orig/J;      
 
       // Compute the rate of deformation tensor
       Matrix3 D = (velGrad[idx] + velGrad[idx].Transpose())*.5;

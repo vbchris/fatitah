@@ -229,7 +229,7 @@ void RigidMPM::scheduleInterpolateToParticlesAndUpdate(SchedulerP& sched,
   t->requires(Task::OldDW, lb->pVelocityLabel,         Ghost::None);
   t->requires(Task::OldDW, lb->pDispLabel,             Ghost::None);
   t->requires(Task::OldDW, lb->pSizeLabel,             Ghost::None);
-  t->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc,        Ghost::None);
+  t->requires(Task::NewDW, lb->pDefGradLabel_preReloc,        Ghost::None);
 
 
 
@@ -349,7 +349,7 @@ void RigidMPM::interpolateToParticlesAndUpdate(const ProcessorGroup*,
       new_dw->allocateAndPut(pmassNew,     lb->pMassLabel_preReloc,       pset);
       new_dw->allocateAndPut(pids_new,     lb->pParticleIDLabel_preReloc, pset);
       new_dw->allocateAndPut(pTempNew,     lb->pTemperatureLabel_preReloc,pset);
-      new_dw->get(pDeformationMeasure, lb->pDeformationMeasureLabel_preReloc, pset);
+      new_dw->get(pDeformationMeasure, lb->pDefGradLabel_preReloc, pset);
 
 
       // for thermal stress analysis

@@ -302,7 +302,7 @@ void SoilFoam::computeStressTensor(const PatchSubset* patches,
     vector<Vector> d_S(interpolator->size());
     vector<double> S(interpolator->size());
 
-    Matrix3 velGrad,deformationGradientInc,Identity,zero(0.),One(1.);
+    Matrix3 deformationGradientInc,Identity,zero(0.),One(1.);
     double c_dil=0.0;
     Vector WaveSpeed(1.e-12,1.e-12,1.e-12);
     double onethird = (1.0/3.0);
@@ -318,16 +318,14 @@ void SoilFoam::computeStressTensor(const PatchSubset* patches,
     constParticleVariable<Point> px;
     constParticleVariable<Matrix3> deformationGradient, pstress;
     ParticleVariable<Matrix3> pstress_new;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new, velGrad;
     constParticleVariable<double> pmass, ptemperature, sv_min, p_sv_min;
-    ParticleVariable<double> pvolume, sv_min_new, p_sv_min_new;
+    constParticleVariable<double> pvolume;
+    ParticleVariable<double> sv_min_new, p_sv_min_new;
     constParticleVariable<Vector> pvelocity;
     constParticleVariable<Matrix3> psize;
-    constNCVariable<Vector> gvelocity;
     delt_vartype delT;
     old_dw->get(delT, lb->delTLabel, getLevel(patches));
-
-    Ghost::GhostType  gac   = Ghost::AroundCells;
 
     old_dw->get(px,                  lb->pXLabel,                  pset);
     old_dw->get(pstress,             lb->pStressLabel,             pset);
@@ -337,12 +335,12 @@ void SoilFoam::computeStressTensor(const PatchSubset* patches,
     old_dw->get(ptemperature,        lb->pTemperatureLabel,        pset);
     old_dw->get(sv_min,              sv_minLabel,                  pset);
     old_dw->get(p_sv_min,            p_sv_minLabel,                pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
 
-    new_dw->get(gvelocity,lb->gVelocityStarLabel, dwi,patch, gac, NGN);
+    new_dw->get(velGrad,                 lb->pVelGradLabel_preReloc,  pset);
+    new_dw->get(deformationGradient_new, lb->pDefGradLabel_preReloc,  pset);
+    new_dw->get(pvolume,                 lb->pVolumeLabel_preReloc,   pset);
 
-    constNCVariable<Vector> Gvelocity;
-    constParticleVariable<Short27> pgCode;
     constParticleVariable<Matrix3> pdispGrads;
     constParticleVariable<double>  pstrainEnergyDensity;
     ParticleVariable<Matrix3> pvelGrads;
@@ -351,11 +349,8 @@ void SoilFoam::computeStressTensor(const PatchSubset* patches,
     ParticleVariable<double> pdTdt,p_q;
 
     new_dw->allocateAndPut(pstress_new,     lb->pStressLabel_preReloc,   pset);
-    new_dw->allocateAndPut(pvolume,         lb->pVolumeLabel_preReloc,   pset);
     new_dw->allocateAndPut(sv_min_new,   sv_minLabel_preReloc,           pset);
     new_dw->allocateAndPut(p_sv_min_new, p_sv_minLabel_preReloc,         pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                           lb->pDeformationMeasureLabel_preReloc,        pset);
     new_dw->allocateAndPut(pdTdt,           lb->pdTdtLabel_preReloc,     pset);
     new_dw->allocateAndPut(p_q,             lb->p_qLabel_preReloc,       pset);
 
@@ -369,39 +364,14 @@ void SoilFoam::computeStressTensor(const PatchSubset* patches,
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
 
-      velGrad.set(0.0);
-      if(!flag->d_axisymmetric){
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],deformationGradient[idx]);
-
-        computeVelocityGradient(velGrad,ni,d_S, oodx, gvelocity);
-      } else {  // axi-symmetric kinematics
-        // Get the node indices that surround the cell
-        interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                                   psize[idx],deformationGradient[idx]);
-        // x -> r, y -> z, z -> theta
-        computeAxiSymVelocityGradient(velGrad,ni,d_S,S,oodx,gvelocity,px[idx]);
-      }
-
-
       // Calculate rate of deformation D, and deviatoric rate DPrime,
       // including effect of thermal strain
-      Matrix3 D = (velGrad + velGrad.Transpose())*.5;
+      Matrix3 D = (velGrad[idx] + velGrad[idx].Transpose())*.5;
       Matrix3 DPrime = D - Identity*onethird*D.Trace();
 
-      // Compute the deformation gradient increment using the time_step
-      // velocity gradient
-      // F_n^np1 = dudx * dt + Identity
-      deformationGradientInc = velGrad * delT + Identity;
-
-      // Update the deformation gradient tensor to its time n+1 value.
-      deformationGradient_new[idx] = deformationGradientInc *
-                             deformationGradient[idx];
-
       // get the volumetric part of the deformation
-      double J = deformationGradient[idx].Determinant();
+      double J = deformationGradient_new[idx].Determinant();
       double rho_cur = rho_orig/J;
-      pvolume[idx]=pmass[idx]/rho_cur;
       double vol_strain = log(pvolume[idx]/(pmass[idx]/rho_orig));
       double pres;
 
@@ -476,7 +446,7 @@ void SoilFoam::computeStressTensor(const PatchSubset* patches,
       if (flag->d_artificial_viscosity) {
         double dx_ave = (dx.x() + dx.y() + dx.z())/3.0;
         double c_bulk = sqrt(bulk/rho_cur);
-        Matrix3 D=(velGrad + velGrad.Transpose())*0.5;
+        Matrix3 D=(velGrad[idx] + velGrad[idx].Transpose())*0.5;
         p_q[idx] = artificialBulkViscosity(D.Trace(), c_bulk, rho_cur, dx_ave);
       } else {
         p_q[idx] = 0.;

@@ -409,14 +409,15 @@ void Arenisca::computeStressTensor(const PatchSubset* patches,
     ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
 
     // Declare some particle ISVs and field variables
+    constParticleVariable<Matrix3> velGrad;
     ParticleVariable<Matrix3>      deformationGradient_new;
     constParticleVariable<Matrix3> deformationGradient;
     constParticleVariable<Matrix3> stress_old;
     ParticleVariable<Matrix3>      stress_new;
     constParticleVariable<Point>   px;
     constParticleVariable<double>  pmass;
-    ParticleVariable<double>       pvolume,
-                                   p_q;
+    ParticleVariable<double>       pvolume;
+    ParticleVariable<double>       p_q;
     constParticleVariable<Vector>  pvelocity;
 	  constParticleVariable<Matrix3> psize;
     ParticleVariable<double>       pdTdt;
@@ -436,8 +437,7 @@ void Arenisca::computeStressTensor(const PatchSubset* patches,
     ParticleVariable<double>       pKappaFlag_new;
     constParticleVariable<int>     pLocalized;
     ParticleVariable<int>          pLocalized_new;
-    ParticleVariable<Matrix3>      velGrad,
-                                   rotation,
+    ParticleVariable<Matrix3>      rotation,
                                    trial_stress;
     ParticleVariable<double>       f_trial,
                                    rho_cur;
@@ -472,15 +472,17 @@ void Arenisca::computeStressTensor(const PatchSubset* patches,
     old_dw->get(pmass,               lb->pMassLabel,               pset);
     old_dw->get(psize,               lb->pSizeLabel,               pset);
     old_dw->get(pvelocity,           lb->pVelocityLabel,           pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
     old_dw->get(stress_old,          lb->pStressLabel,             pset);
+
+    new_dw->get(velGrad,                 lb->pVelGradLabel_preReloc, pset);
+
+    new_dw->getModifiable(pvolume,                 lb->pVolumeLabel_preReloc,  pset);
+    new_dw->getModifiable(deformationGradient_new, lb->pDefGradLabel_preReloc, pset);
+
     new_dw->allocateAndPut(stress_new, lb->pStressLabel_preReloc,             pset);
-    new_dw->allocateAndPut(pvolume,    lb->pVolumeLabel_preReloc,             pset);
     new_dw->allocateAndPut(pdTdt,      lb->pdTdtLabel_preReloc,               pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                                       lb->pDeformationMeasureLabel_preReloc, pset);
     new_dw->allocateAndPut(p_q,        lb->p_qLabel_preReloc,                 pset);
-    new_dw->allocateTemporary(velGrad,      pset);
     new_dw->allocateTemporary(rotation,     pset);
     new_dw->allocateTemporary(trial_stress, pset);
     new_dw->allocateTemporary(f_trial,      pset);
@@ -510,10 +512,6 @@ void Arenisca::computeStressTensor(const PatchSubset* patches,
     // Get the initial density
     double rho_orig = matl->getInitialDensity();
 
-    // Get the deformation gradients first.
-    constNCVariable<Vector> gvelocity;  //NCV=Node Centered Variable
-    new_dw->get(gvelocity, lb->gVelocityStarLabel,dwi,patch,gac,NGN);
-
     // Loop over the particles of the current patch to compute particle
     // deformation gradient, volume, and density
     for(ParticleSubset::iterator iter=pset->begin();iter!=pset->end();iter++){
@@ -521,47 +519,6 @@ void Arenisca::computeStressTensor(const PatchSubset* patches,
 
       //re-zero the velocity gradient:
       pLocalized_new[idx]=pLocalized[idx];
-      tensorL.set(0.0);
-      if(!flag->d_axisymmetric){
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],
-                                                   deformationGradient[idx]);
-        computeVelocityGradient(tensorL,ni,d_S, oodx, gvelocity);
-      } else {  // axi-symmetric kinematics
-        // Get the node indices that surround the cell
-        interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                   psize[idx],deformationGradient[idx]);
-        // x -> r, y -> z, z -> theta
-        computeAxiSymVelocityGradient(tensorL,ni,d_S,S,oodx,gvelocity,px[idx]);
-      }
-      velGrad_old=velGrad[idx];
-      velGrad[idx]=tensorL;
-
-      int num_scs = 4;
-      Matrix3 one; one.Identity();
-#ifdef JC_USE_BB_DEFGRAD_UPDATE
-      // Improve upon first order estimate of deformation gradient
-      Matrix3 Amat = (velGrad_old + velGrad[idx])*(0.5*delT);
-      Matrix3 Finc = Amat.Exponential(JC_USE_BB_DEFGRAD_UPDATE);
-      Matrix3 Fnew = Finc*deformationGradient[idx];
-      deformationGradient_new[idx] = Fnew;
-#else
-      // Update the deformation gradient in a new way using subcycling
-      Matrix3 F=deformationGradient[idx];
-      double Lnorm_dt = tensorL.Norm()*delT;
-      num_scs = max(4,2*((int) Lnorm_dt));
-      if(num_scs > 1000){
-        cout << "NUM_SCS = " << num_scs << endl;
-      }
-      double dtsc = delT/(double (num_scs));
-      Matrix3 OP_tensorL_DT = one + tensorL*dtsc;
-      for(int n=0;n<num_scs;n++){
-        F=OP_tensorL_DT*F;
-      }
-      deformationGradient_new[idx]=F;
-      // Update the deformation gradient, Old First Order Way
-      // deformationGradient_new[idx]=(tensorL*delT+Identity)*deformationGradient[idx];
-#endif
       
       // Compute the Jacobian and delete the particle in the case of negative Jacobian
       J = deformationGradient_new[idx].Determinant();
@@ -573,11 +530,10 @@ void Arenisca::computeStressTensor(const PatchSubset* patches,
         cout<<"Fnew= "<<deformationGradient_new[idx]<<endl;
         cout<<"Fold= "<<deformationGradient[idx]<<endl;
         cout<<"L= "<<tensorL<<endl;
-        cout<<"num_scs= "<<num_scs<<endl;
         pLocalized_new[idx] = -999;
         cout<<"DELETING Arenisca particle " << endl;
         J=1;
-        deformationGradient_new[idx] = one;
+        deformationGradient_new[idx] = Identity;
         //throw InvalidValue("**ERROR**:Negative Jacobian", __FILE__, __LINE__);
       }
 #ifdef JC_FREEZE_PARTICLE

@@ -179,7 +179,7 @@ void MurnaghanMPM::computeStressTensor(const PatchSubset* patches,
 //#if 0
     for(int pp=0;pp<patches->size();pp++){
     const Patch* patch = patches->get(pp);
-    Matrix3 velGrad,Shear;
+    Matrix3 Shear;
     double p,se=0.;
     double c_dil=0.0;
     Vector WaveSpeed(1.e-12,1.e-12,1.e-12);
@@ -198,11 +198,11 @@ void MurnaghanMPM::computeStressTensor(const PatchSubset* patches,
     int dwi = matl->getDWIndex();
     ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
     constParticleVariable<Point> px;
-    ParticleVariable<Matrix3> deformationGradient_new;
+    constParticleVariable<Matrix3> deformationGradient_new, velGrad;
     constParticleVariable<Matrix3> deformationGradient;
     ParticleVariable<Matrix3> pstress;
     constParticleVariable<double> pmass;
-    ParticleVariable<double> pvolume;
+    constParticleVariable<double> pvolume;
     constParticleVariable<Vector> pvelocity;
     constParticleVariable<Matrix3> psize;
     ParticleVariable<double> pdTdt,p_q;
@@ -214,24 +214,22 @@ void MurnaghanMPM::computeStressTensor(const PatchSubset* patches,
     old_dw->get(px,                  lb->pXLabel,                  pset);
     old_dw->get(pmass,               lb->pMassLabel,               pset);
     old_dw->get(pvelocity,           lb->pVelocityLabel,           pset);
-    old_dw->get(deformationGradient, lb->pDeformationMeasureLabel, pset);
+    old_dw->get(deformationGradient, lb->pDefGradLabel,            pset);
     old_dw->get(psize,               lb->pSizeLabel,               pset);
     
+    new_dw->get(pvolume,                 lb->pVolumeLabel_preReloc,  pset);
+    new_dw->get(deformationGradient_new, lb->pDefGradLabel_preReloc, pset);
+    new_dw->get(velGrad,                 lb->pVelGradLabel_preReloc, pset);
+
     new_dw->allocateAndPut(pstress,          lb->pStressLabel_preReloc,  pset);
-    new_dw->allocateAndPut(pvolume,          lb->pVolumeLabel_preReloc,  pset);
     new_dw->allocateAndPut(pdTdt,            lb->pdTdtLabel_preReloc,    pset);
     new_dw->allocateAndPut(p_q,              lb->p_qLabel_preReloc,      pset);
-    new_dw->allocateAndPut(deformationGradient_new,
-                                  lb->pDeformationMeasureLabel_preReloc, pset);
 
     double viscosity = d_initialData.d_Viscosity;
     double K  = d_initialData.d_K;
     double gamma = d_initialData.d_Gamma;
 
     double rho_orig = d_initialData.d_rho0; // matl->getInitialDensity();
-
-    constNCVariable<Vector> gvelocity;
-    new_dw->get(gvelocity, lb->gVelocityStarLabel,dwi,patch,gac,NGN);
 
     if(!flag->d_doGridReset){
       cerr << "The water model doesn't work without resetting the grid" << endl;
@@ -244,32 +242,14 @@ void MurnaghanMPM::computeStressTensor(const PatchSubset* patches,
       // Assign zero internal heating by default - modify if necessary.
       pdTdt[idx] = 0.0;
 
-      velGrad.set(0.0);
-      if(!flag->d_axisymmetric){
-        // Get the node indices that surround the cell
-        interpolator->findCellAndShapeDerivatives(px[idx],ni,d_S,psize[idx],deformationGradient[idx]);
-
-        computeVelocityGradient(velGrad,ni,d_S, oodx, gvelocity);
-      } else {  // axi-symmetric kinematics
-        // Get the node indices that surround the cell
-        interpolator->findCellAndWeightsAndShapeDerivatives(px[idx],ni,S,d_S,
-                                                                   psize[idx],deformationGradient[idx]);
-        // x -> r, y -> z, z -> theta
-        computeAxiSymVelocityGradient(velGrad,ni,d_S,S,oodx,gvelocity,px[idx]);
-      }
-
-      deformationGradient_new[idx]=(velGrad*delT+Identity)
-                                    *deformationGradient[idx];
-
       double J = deformationGradient_new[idx].Determinant();
 
       // Calculate rate of deformation D, and deviatoric rate DPrime,
-      Matrix3 D = (velGrad + velGrad.Transpose())*0.5;
+      Matrix3 D = (velGrad[idx] + velGrad[idx].Transpose())*0.5;
       Matrix3 DPrime = D - Identity*onethird*D.Trace();
 
       // Get the deformed volume and current density
       double rho_cur = rho_orig/J;
-      pvolume[idx] = pmass[idx]/rho_cur;
 
       // Viscous part of the stress
       Shear = DPrime*(2.*viscosity);
@@ -291,7 +271,7 @@ void MurnaghanMPM::computeStressTensor(const PatchSubset* patches,
       if (flag->d_artificial_viscosity) {
         double dx_ave = (dx.x() + dx.y() + dx.z())/3.0;
         double c_bulk = sqrt(K/rho_cur);
-        Matrix3 D=(velGrad + velGrad.Transpose())*0.5;
+        Matrix3 D=(velGrad[idx] + velGrad[idx].Transpose())*0.5;
         p_q[idx] = artificialBulkViscosity(D.Trace(), c_bulk, rho_cur, dx_ave);
       } else {
         p_q[idx] = 0.;
