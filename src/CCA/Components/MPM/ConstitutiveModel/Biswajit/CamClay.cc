@@ -387,7 +387,7 @@ CamClay::computeStressTensor(const PatchSubset* patches,
     constParticleVariable<Matrix3>  pDefGrad_old, pDefGrad_new;
     constParticleVariable<Matrix3>  pVelGrad_old, pVelGrad_new;
     old_dw->get(pDefGrad_old, lb->pDefGradLabel, pset);
-    old_dw->get(pDefGrad_new, lb->pDefGradLabel_preReloc, pset);
+    new_dw->get(pDefGrad_new, lb->pDefGradLabel_preReloc, pset);
     old_dw->get(pVelGrad_old, lb->pVelGradLabel, pset);
     new_dw->get(pVelGrad_new, lb->pVelGradLabel_preReloc, pset);
 

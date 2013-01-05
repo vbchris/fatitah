@@ -160,8 +160,9 @@ ConstitutiveModel::addSharedCRForExplicit(Task* task,
   task->requires(Task::OldDW, lb->pTemperatureLabel,        matlset, gnone);
   task->requires(Task::OldDW, lb->pVelocityLabel,           matlset, gnone);
   task->requires(Task::OldDW, lb->pDefGradLabel,            matlset, gnone);
-  task->requires(Task::OldDW, lb->pDefGradLabel,            matlset, gnone);
+  task->requires(Task::OldDW, lb->pVelGradLabel,            matlset, gnone);
   task->requires(Task::NewDW, lb->pDefGradLabel_preReloc,   matlset, gnone);
+  task->requires(Task::NewDW, lb->pVelGradLabel_preReloc,   matlset, gnone);
   //task->requires(Task::OldDW, lb->pDeformationMeasureLabel, matlset, gnone);
   task->requires(Task::NewDW, lb->gVelocityStarLabel,       matlset, gac, NGN);
   if(!flag->d_doGridReset){
